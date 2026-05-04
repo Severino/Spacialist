@@ -60,6 +60,10 @@
                         {{ t('main.importer.import_settings') }}
                     </header>
                     <div class="card-body overflow-y-auto mh-100">
+                        <ImportProgress
+                            class="mb-2"
+                            :processed="state.processed"
+                        />
                         <importer-update-state
                             v-if="state.validated"
                             :conflict="state.validationData.conflict"
@@ -175,6 +179,7 @@
 
     import EntityAttributeMapping from '@/components/tools/importer/EntityAttributeMapping.vue';
     import EntityImporterSettings from '@/components/tools/importer/EntityImporterSettings.vue';
+    import ImportProgress from '../tools/importer/ImportProgress.vue';
     import ImporterUpdateState from '@/components/tools/importer/ImporterUpdateState.vue';
     import LoadingButton from '@/components/forms/button/LoadingButton.vue';
 
@@ -201,10 +206,11 @@
 
     export default {
         components: {
-            EntityImporterSettings,
             EntityAttributeMapping,
-            LoadingButton,
+            EntityImporterSettings,
             ImporterUpdateState,
+            ImportProgress,
+            LoadingButton,
         },
         setup(props, context) {
             const { t } = useI18n();
@@ -421,6 +427,13 @@
                     })
                     .catch(axiosError => {
                         console.error(axiosError);
+                        toast.$toast(axiosError, '', {
+                            duration: 2500,
+                            autohide: true,
+                            channel: 'danger',
+                            icon: true,
+                            simple: true,
+                        });
                     })
                     .finally(_ => state.validating = false);
             };
@@ -431,12 +444,9 @@
 
                 importEntityData(formData).then(data => {
                     state.imported = true;
-                    for(let i = 0; i < data.length; i++) {
-                        entityStore.add(data[i]);
-                    }
                     toast.$toast(t('main.importer.success', {
-                        cnt: data.length
-                    }, data.length), '', {
+                        cnt: data.count
+                    }, data.count), '', {
                         duration: 2500,
                         autohide: true,
                         channel: 'success',

@@ -169,6 +169,12 @@ export const usePluginStore = defineStore('plugin', {
                 this.registeredSlots[slot] = [];
             }
         },
+        hasAttribute(datatype) {
+            return !!usePluginStore().registeredPluginAttributes?.[datatype];
+        },
+        getAttribute(datatype) {
+            return usePluginStore().registeredPluginAttributes?.[datatype] || null;
+        },
         registerAttribute(data) {
             const { datatype } = data;
 

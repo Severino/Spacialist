@@ -471,187 +471,25 @@ class EntityController extends Controller {
         if($errorResponse) {
             return $errorResponse;
         }
-
-        $file = $request->file('file');
-        $filepath = $file->getRealPath();
-        $metadata = json_decode($request->get('metadata'), true);
-        $data = json_decode($request->get('data'), true);
-        $handle = fopen($filepath, 'r');
-
-        $hasHeaderRow = $metadata["has_header_row"];
-
-        // Data values
-        $nameColumn = trim($data['name_column']);
-        $parentColumn = isset($data['parent_column']) ? trim($data['parent_column']) : null;
-        $entityTypeId = trim($data['entity_type_id']);
-        $attributesMapping = array_map(fn ($col) => trim($col), $data['attributes']);
-
-        $headerRow = null;
-        $hasParent = false;
-        $attributeIdToColumnIdxMapping = [];
-        $attributeTypes = [];
-        $changedEntities = [];
-
-        DB::beginTransaction();
-
-        $affectedRows = 0;
-        $parentIdx = null;
-        $nameIdx = null;
-
-        // Getting headers
-        if(($row = fgetcsv($handle, 0, $metadata['delimiter'])) !== false) {
-            $row = sp_trim_array($row);
-            try{
-                $headerRow = $row;
-                for($i = 0; $i < count($row); $i++) {
-                    // Use the provided column name or the column number
-                    $columnName = $hasHeaderRow ? $row[$i] : "#".($i + 1);
-
-                    if($columnName == $nameColumn) {
-                        $nameIdx = $i;
-                    } else if(isset($parentColumn) && $columnName == $parentColumn) {
-                        $parentIdx = $i;
-                        $hasParent = true;
-                    }
-
-                    foreach($attributesMapping as $id => $a) {
-                        if($a == $columnName) {
-                            $attributeIdToColumnIdxMapping[$id] = $i;
-                            $attributeTypes[$id] = Attribute::findOrFail($id)->datatype;
-                            break;
-                        }
-                    }
-                }
-            } catch(ModelNotFoundException $e) {
-                DB::rollBack();
-                $ids = $e->getIds();
-                return response()->json([
-                    'error' => __('entity-importer.attribute-id-does-not-exist', ['attributes' => join(', ', $ids)]),
-                    'data' => new ImportExceptionStruct(),
-                ], 400);
-            }
-        }
-
-        // When we have no header row, we need to rewind the file handle
-        if(!$hasHeaderRow){
-            rewind($handle);
-        }
-
-        //Processing rows
-        while(($row = fgetcsv($handle, 0, $metadata['delimiter'])) !== false) {
-            $row = sp_trim_array($row);
-            $affectedRows++;
-
-            if(!isset($nameIdx)) {
-                throw new ImportException(
-                    "Name column '" . $nameColumn . "' could not be found in CSV file",
-                    400,
-                    new ImportExceptionStruct(on: $nameColumn)
-                );
-            }
-
-            $rootEntityPath = $hasParent ? $row[$parentIdx] : null;
-            $entityName = $row[$nameIdx];
-            $entityPath = $entityName;
-            $entityId = null;
-
-            $errorResponseData = new ImportExceptionStruct(
-                count: count($changedEntities) + 1,
-                entry: $entityName,
-            );
-
-            if($hasParent && !empty($rootEntityPath)) {
-
-                $entityPath = implode("\\\\", [$rootEntityPath, $entityName]);
-
-                $errorResponseData->on = $headerRow[$parentIdx];
-                $errorResponseData->on_index = $parentIdx + 1;
-                $errorResponseData->on_value = $row[$parentIdx];
-
-                try{
-                    $parentEntity = Entity::getFromPath($rootEntityPath);
-                    if(!isset($parentEntity)) {
-                        DB::rollBack();
-                        return response()->json([
-                            'error' => __('Parent entity does not exist'),
-                            'data' => $errorResponseData
-                        ], 400);
-                    }
-                } catch(AmbiguousValueException $ave) {
-                    DB::rollBack();
-                    return response()->json([
-                        'error' => __($ave->getMessage()),
-                        'data' => $errorResponseData,
-                    ], 400);
-                }
-            }
-
-            try{
-                $entityId = Entity::getFromPath($entityPath);
-            } catch(AmbiguousValueException $ave) {
-                DB::rollBack();
-                return response()->json([
-                    'error' => __($ave->getMessage()),
-                    'data' => $errorResponseData,
-                ], 400);
-            }
-            try{
-                $user = auth()->user();
-                if($entityId == null) {
-                    $entity = $this->createImportedEntity($entityName, $rootEntityPath, $entityTypeId, $user);
-
-                    // If create entity fails, return error
-                    if($entity["type"] !== "entity") {
-                        DB::rollBack();
-                        return response()->json([
-                            'error' => $entity['msg'],
-                            'data' => [
-                                'count' => count($changedEntities) + 1,
-                                'entry' => $entityName,
-                                'on' => __('Create Entity from given data'),
-                            ],
-                        ], $entity['code']);
-                    }
-
-                    $entityId = $entity['entity']->id;
-                }
-
-                $this->setOrUpdateImportedAttributes($entityId, $row, $headerRow, $attributeIdToColumnIdxMapping, $attributeTypes, $user);
-                $changedEntities[] = $entityId;
-            } catch(AttributeImportException $e) {
-                DB::rollBack();
-                return response()->json($e->toImportExceptionObject(count($changedEntities) + 1, $entityName), 400);
-            } catch(ImportException $e) {
-                DB::rollBack();
-                return response()->json(
-                    [
-                        'error' => $e->getMessage(),
-                        'data' => $e->getData()
-                    ],
-                    400
-                );
-            } catch(Exception $e) {
-                DB::rollBack();
-                return response()->json(
-                    [
-                        'error' => $e->getMessage(),
-                        'data' => $errorResponseData
-                    ],
-                    400
-                );
-            }
-        }
-
-        if($affectedRows === 0) {
-            DB::rollBack();
+        try {
+            $file = $request->file('file');
+            $filepath = $file->getRealPath();
+            $metadata = json_decode($request->get('metadata'), true);
+            $data = json_decode($request->get('data'), true);
+            $entityImporter = new EntityImporter($metadata, $data);
+            $changedEntities = $entityImporter->importData($filepath);
+            $changedCount = is_array($changedEntities) ? count($changedEntities) : 0;
+        } catch(ImportException $e) {
+            return response()->json($e->getObject(), $e->getHttpCode());
+        } catch(Exception $e) {
+            Log::error($e->getMessage(), ['exception' => $e]);
             return response()->json([
-                'error' => __('entity-importer.empty'),
-            ], 400);
+                'error' => __('An unexpected error occurred while importing the entities'),
+            ], 500);
         }
-
-        fclose($handle);
-        DB::commit();
-        return response()->json($changedEntities, 201);
+        return response()->json([
+            'count' => $changedCount,
+        ], 201);
     }
 
     function exportEntityTree($id, Request $request) {
@@ -772,53 +610,6 @@ class EntityController extends Controller {
             $files[$entityTypeId] = $filename;
         }
         return $files;
-    }
-
-    function createImportedEntity($entityName, ?string $rootEntityPath, $entityTypeId, $user) {
-        $rootEntityId = null;
-        if(isset($rootEntityPath)) {
-            try {
-                $rootEntityId = Entity::getFromPath($rootEntityPath);
-            } catch(AmbiguousValueException $ave) {
-                throw new Exception($ave->getMessage());
-            }
-        }
-
-        return Entity::create([
-            'name' => $entityName,
-        ], $entityTypeId, $user, $rootEntityId);
-    }
-
-    function setOrUpdateImportedAttributes($entity_id, $row, $headerRow, $attributeIdToColumnIdxMapping, $attributeTypes, $user) {
-        foreach($attributeIdToColumnIdxMapping as $key => $colIdx) {
-            $aid = intval($key);
-            $type = $attributeTypes[$aid];
-
-            $attrVal = AttributeValue::firstOrNew([
-                'entity_id' => $entity_id,
-                'attribute_id' => $key,
-            ], [
-                'user_id' => $user->id,
-            ]);
-            try{
-                $setValue = $attrVal->setValueFromRaw($row[$colIdx], $type);
-            } catch(InvalidDataException $e) {
-                throw new AttributeImportException(
-                    $e->getMessage(),
-                    new AttributeImportExceptionStruct(
-                        type: $type,
-                        columnIndex: $colIdx + 1,
-                        columnValue: $row[$colIdx],
-                        columnName: $headerRow[$colIdx]
-                    )
-                );
-            }
-
-            if($setValue === null) {
-                continue;
-            }
-            $attrVal->save();
-        }
     }
 
     // PATCH

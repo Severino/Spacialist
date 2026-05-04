@@ -185,7 +185,7 @@
                                         :aria-controls="`dme-attribute-list-${type}-grp-container`"
                                     >
                                         <span class="flex-fill">
-                                            <span v-if="isFromPlugin(type)">
+                                            <span v-if="attributeStore.isFromPlugin(type)">
                                                 {{ t(getPluginLabel(type)) }}
                                                 <i class="fas fa-fw fa-puzzle-piece" />
                                             </span>
@@ -392,7 +392,6 @@
                 return attributeGroupItemCount(items) > 0;
             };
 
-            const isFromPlugin = datatype => attributeStore.isFromPlugin(datatype);
             const getPluginLabel = datatype => attributeStore.getPluginAttributeLabel(datatype);
 
             // DATA
@@ -443,10 +442,10 @@
                     const groupList = Object.entries(state.attributeListGroups);
 
                     return groupList.sort((a, b) => {
-                        const labelA = isFromPlugin(a[0]) ?
+                        const labelA = attributeStore.isFromPlugin(a[0]) ?
                             t(getPluginLabel(a[0])) :
                             t(`global.attributes.${a[0]}`);
-                        const labelB = isFromPlugin(b[0]) ?
+                        const labelB = attributeStore.isFromPlugin(b[0]) ?
                             t(getPluginLabel(b[0])) :
                             t(`global.attributes.${b[0]}`);
                         return labelA.localeCompare(labelB);
@@ -464,7 +463,7 @@
             // RETURN
             return {
                 t,
-                // HELPERS
+                attributeStore,
                 // LOCAL
                 setEntityType,
                 addEntityType,
@@ -476,7 +475,6 @@
                 setAttributeGroupExpand,
                 attributeGroupItemCount,
                 attributeGroupHasItems,
-                isFromPlugin,
                 getPluginLabel,
                 // STATE
                 accordionRef,

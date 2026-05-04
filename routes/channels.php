@@ -39,3 +39,7 @@ Broadcast::channel('room.entity.{entityId}', function (User $user, int $entityId
 Broadcast::channel('private_testchannel', function (User $user) {
     return true;
 });
+
+Broadcast::channel('entity-import-progress', function (User $user) {
+    return true;
+});

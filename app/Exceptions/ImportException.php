@@ -20,6 +20,10 @@ class ImportException extends Exception {
     public function getData() {
         return $this->data;
     }
+    
+    public function getHttpCode(){
+        return $this->httpErrorCode;
+    }
 
     public function getObject() {
         return [

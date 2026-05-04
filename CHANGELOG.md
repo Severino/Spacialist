@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - .env variable `ALLOW_FILESYSTEM_MIGRATIONS` to explcitly enable filesystem migrations
 - API endpoint for getting all entity details data in one request: GET::v1/entity/{id}/entity_detail
 - Added specific log file for plugins
+- Data Import now visualized by a progress bar
 ### Fixed
 - Removed redundant calls to the entity endpoint
 - Metadata tab error on submit (unknown variable)
@@ -21,7 +22,9 @@ All notable changes to this project will be documented in this file.
 - Migrations now have logging automatically disabled
 - Migrations that require filesystem changes can now be handled using the `App\Traits\FilesystemMigration` trait (call `$this->safelyMoveDirectoryBetweenDisks(...)` with `ALLOW_FILESYTEM_MIGRATIONS` set to `true`)
 - Moved plugin state into separate store
-
+- Performance improvements for the data importer to enable imports of files > 200 lines:
+    - before: 200 lines took 5 minutes
+    - now: 18,000 lines take 74 seconds (validation 48s, import 26s)
 ## 0.11.1
 ### Added
 - Unit Tests for Directory.php
