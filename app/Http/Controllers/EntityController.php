@@ -17,6 +17,7 @@ use App\Exceptions\InvalidDataException;
 use App\Exceptions\Structs\AttributeImportExceptionStruct;
 use App\Exceptions\Structs\ImportExceptionStruct;
 use App\Import\EntityImporter;
+use App\Import\EntityImportValidator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
@@ -454,9 +455,15 @@ class EntityController extends Controller {
         $metadata = json_decode($request->get('metadata'), true);
         $data = json_decode($request->get('data'), true);
 
-        $entityImport = new EntityImporter($metadata, $data);
-        $resolver = $entityImport->validateImportData($filepath);
-
+        $importValidator = new EntityImportValidator(
+            $metadata,
+            $data['name_column'],
+            $data['parent_column'] ?? null,
+            $data['entity_type_id'],
+            $data['attributes'] ?? []
+        );
+        $resolver = $importValidator->validate($filepath);
+        
         return response()->json([
             'errors' => $resolver->getErrors(),
             'summary' => $resolver->getSummary(),

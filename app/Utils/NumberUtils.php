@@ -60,4 +60,25 @@ class NumberUtils {
             ||
             bccomp($intString, (string)PHP_INT_MIN) === -1;
     }
+    
+    
+    /**
+    * Scales a progress value from one range to another. Useful if you have one process, that 
+    * will run from 0 to 100% but it's just a part of a bigger process and you want to report 
+    * the current state of the bigger process, e.g. scaleProgress(50, 100, 0, 30) will return 15, 
+    * because 50% of the original range corresponds to 50% of the target range (which is 50% of 30 = 15).
+    *
+    * @param int $current - The current progress value in the original range
+    * @param int $total - The total progress value representing 100% in the original range
+    * @param int $start - The start of the target range (inclusive)
+    * @param int $end - The end of the target range (inclusive)
+    * @return int - The scaled progress value in the target range
+    */
+    public static function scaleProgress(int $current, int $total, int $start, int $end): int {
+        $boundedTotal = max(1, $total);
+        $boundedCurrent= min(max(0, $current), $boundedTotal);
+        $span = max(0, $end - $start);
+
+        return $start + (int) floor(($boundedCurrent/ $boundedTotal) * $span);
+    }
 }
