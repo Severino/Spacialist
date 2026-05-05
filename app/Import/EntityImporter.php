@@ -2,17 +2,20 @@
 
 namespace App\Import;
 
-use App\Exceptions\CsvColumnMismatchException;
-use App\Exceptions\ImportException;
-use App\Exceptions\Structs\ImportExceptionStruct;
 use App\Attribute;
 use App\AttributeTypes\AttributeBase;
 use App\AttributeValue;
 use App\Entity;
 use App\Events\EntityImportProgress;
 use App\Exceptions\AmbiguousValueException;
+use App\Exceptions\CsvColumnMismatchException;
+use App\Exceptions\ImportException;
 use App\Exceptions\InvalidDataException;
+use App\Exceptions\Structs\ImportExceptionStruct;
 use App\File\Csv;
+use App\Import\Caches\EntitiesEntityTypeIdCache;
+use App\Import\Caches\PathCache;
+use App\Import\ImportPipelineContext;
 use App\Import\ImportResolution;
 use App\Utils\NumberUtils;
 use Exception;
@@ -51,7 +54,10 @@ class EntityImporter {
     private $metadata;
     private array $attributesMap;
     private array $attributeImportClassById = [];
-    private EntityPathCache $pathCache;
+    // private EntityPathCache $pathCache;
+
+    private PathCache $pathCache;
+    private EntitiesEntityTypeIdCache $entitiesTypeIdCache;
     private array $entityTypeIdByEntityId = [];
     private int $nextTempEntityId = -1;
     private array $nextRankByParentKey = [];
@@ -63,8 +69,6 @@ class EntityImporter {
 
     public function __construct($metadata, $data) {
         $this->metadata = $metadata;
-        $this->pathCache = new EntityPathCache();
-
         $this->nameColumn = $data['name_column'] ?? '';
         $this->entityTypeId = $data['entity_type_id'];
         $this->attributesMap = array_map(fn($col) => trim($col), $data['attributes']);
@@ -92,10 +96,35 @@ class EntityImporter {
         $attributeDefinitions = $this->resolveAttributeDefinitions();
         $ctx = new ImportPipelineContext($buffer, $attributeDefinitions, $user->id);
 
+        // We load all entity paths into memory to avoid recursive SQL calls during import.
+        // Getting an path value from the cache returns an array with entity_id and entity_type_id.
+        $this->pathCache = new PathCache();
+        $this->pathCache->preload();
+
+        $this->entitiesTypeIdCache = new EntitiesEntityTypeIdCache();
+        $this->entitiesTypeIdCache->preload();
+
+
         DB::beginTransaction();
         try {
 
             $csvTable = new Csv($this->metadata['has_header_row'], $this->metadata['delimiter'], $this->metadata['encoding']);
+
+            $csvTable->progressListener->add(function ($processedBytes, $totalBytes) {
+                EntityImportProgress::dispatchLimited(
+                    NumberUtils::scaleProgress((int) $processedBytes, (int) $totalBytes, 0, ImportConstants::IMPORT_PARSE_PROGRESS_UNITS),
+                    ImportConstants::IMPORT_PROGRESS_TOTAL_UNITS,
+                    ImportConstants::PROGRESS_EVENT_RATE_LIMIT_SECONDS,
+                    'CSV Parsing'
+                );
+            });
+
+
+
+            $csvTable->batchListener->add(function ($rows) use ($ctx) {
+                $this->importBatch($rows, $ctx);
+            });
+
             try {
                 $csvTable->parseHeaders($handle);
             } catch(Exception $e) {
@@ -104,20 +133,10 @@ class EntityImporter {
 
             // Build a complete in-memory path lookup once to avoid thousands of
             // recursive SQL calls for getFromPath during large imports.
-            $this->preloadEntityPathCache();
-            
+
             EntityImportProgress::dispatch(0, ImportConstants::IMPORT_PROGRESS_TOTAL_UNITS);
 
-            $csvTable->parse($handle, function ($row, $index) use ($ctx) {
-                $this->processImportRow($row, $index, $ctx);
-            }, function ($processedBytes, $totalBytes) {
-                EntityImportProgress::dispatchLimited(
-                    NumberUtils::scaleProgress((int) $processedBytes, (int) $totalBytes, 0, ImportConstants::IMPORT_PARSE_PROGRESS_UNITS),
-                    ImportConstants::IMPORT_PROGRESS_TOTAL_UNITS,
-                    ImportConstants::PROGRESS_EVENT_RATE_LIMIT_SECONDS,
-                    'CSV Parsing'
-                );
-            });
+            $csvTable->parse($handle, function ($row, $index) {});
 
             EntityImportProgress::dispatch(ImportConstants::IMPORT_PARSE_PROGRESS_UNITS, ImportConstants::IMPORT_PROGRESS_TOTAL_UNITS, 'Flush pending entities');
 
@@ -157,6 +176,42 @@ class EntityImporter {
         }
 
         return $buffer->changedEntities;
+    }
+
+    private function importBatch(array $rows, ImportPipelineContext $ctx): void {
+
+        $entities = [];
+        foreach($rows as $index => $row) {
+            $entity = [];
+            $entityPath = $row[$this->parentColumn] . ImportConstants::PARENT_DELIMITER . $row[$this->nameColumn];
+            
+            $entity['name'] = $row[$this->nameColumn];
+            $entity['root_entity_id'] = $this->pathCache->has($row[$this->parentColumn]) ? $this->pathCache->get($row[$this->parentColumn])['id'] : null;
+            $entity['entity_type_id'] = $this->entityTypeId;
+            $entity['user_id'] = $ctx->userId;
+            
+            if($this->pathCache->has($entityPath)) {
+                $path = $this->pathCache->get($entityPath);
+                if(!isset($path['id'])) {
+                    throw new ImportException('The requested entity does not have a valid id.', 400, new ImportExceptionStruct(
+                        count: $index + 1,
+                        entry: $row[$this->nameColumn],
+                        on: $entityPath
+                    ));
+                }
+
+                $row['id'] = $path['id'];
+            } 
+            
+            $entities[] = $entity;
+        }
+
+        Entity::upsert(
+            $entities,
+            ['id'],
+            ['name', 'entity_type_id', 'root_entity_id', 'user_id']
+        );
+
     }
 
     private function processImportRow(array $row, int $index, ImportPipelineContext $ctx): void {
@@ -203,8 +258,8 @@ class EntityImporter {
         if(!$entityId) {
             $entityId = $this->queuePendingEntity($ctx, $entityName, $entityPath, $parentEntityId);
 
-            $this->pathCache->setIdForPath($entityPath, $entityId);
             $this->entityTypeIdByEntityId[$entityId] = $this->entityTypeId;
+            $this->pathCache->set($entityPath, $entityId);
 
             if($ctx->buffer->pendingEntitiesCount() >= ImportConstants::ENTITY_INSERT_CHUNK_SIZE) {
                 $this->flushPendingEntities($ctx);
@@ -410,8 +465,8 @@ class EntityImporter {
                     AND inserted.user_id = input.user_id::integer
                     AND inserted.created_at = input.created_at::timestamptz
                     AND inserted.updated_at = input.updated_at::timestamptz
-                    /* 
-                        rank and root_entity_id may be null and null == null => null therefore we need the 
+                    /*
+                        rank and root_entity_id may be null and null == null => null therefore we need the
                         IS NOT DISTINCT FROM operator.
                     */
                     AND inserted.rank IS NOT DISTINCT FROM input.rank::integer
@@ -430,38 +485,15 @@ class EntityImporter {
         return $tempToRealId;
     }
 
-    private function preloadEntityPathCache(): void {
-        $rows = DB::select(
-            <<<'SQL'
-                WITH RECURSIVE entity_paths AS (
-                    SELECT
-                        e.id,
-                        e.entity_type_id,
-                        e.root_entity_id,
-                        e.name::text AS pathstr
-                    FROM entities e
-                    WHERE e.root_entity_id IS NULL
-                    UNION ALL
-                    SELECT
-                        e.id,
-                        e.entity_type_id,
-                        e.root_entity_id,
-                        p.pathstr || ? || e.name AS pathstr
-                    FROM entities e
-                    INNER JOIN entity_paths p ON p.id = e.root_entity_id
-                )
-                SELECT id, entity_type_id, pathstr
-                FROM entity_paths
-            SQL,
-            [ImportConstants::PARENT_DELIMITER]
-        );
+    // private function preloadEntityPathCache(): void {
 
-        $this->pathCache->preload($rows);
 
-        foreach($rows as $row) {
-            $this->entityTypeIdByEntityId[(int) $row->id] = (int) $row->entity_type_id;
-        }
-    }
+    //     $this->pathCache->preload($rows);
+
+    //     foreach($rows as $row) {
+    //         $this->entityTypeIdByEntityId[(int) $row->id] = (int) $row->entity_type_id;
+    //     }
+    // }
 
     private function resolveAttributeDefinitions(): array {
         $attributeIds = [];

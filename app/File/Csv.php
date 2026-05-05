@@ -3,19 +3,24 @@
 namespace App\File;
 
 use App\Exceptions\CsvColumnMismatchException;
+use App\Helpers\EventListener;
 
 class Csv extends Parser {
-    private string $delimiter;
-    private bool $hasHeaderRow;
     private array $headers = [];
     private int $headerCount = 0;
-    private string $encoding = 'UTF-8';
     private int $rows = 0;
 
-    public function __construct(bool $hasHeaderRow = false, string $delimiter = ",", string $encoding = 'UTF-8') {
-        $this->hasHeaderRow = $hasHeaderRow;
-        $this->delimiter = $delimiter;
-        $this->encoding = $encoding;
+    public readonly EventListener $progressListener;
+    public readonly EventListener $batchListener;
+
+    public function __construct(
+        private bool $hasHeaderRow = false,
+        private string $delimiter = ",",
+        private string $encoding = 'UTF-8',
+        private int $batchSize = 1000
+        ) {
+        $this->progressListener = new EventListener();
+        $this->batchListener = new EventListener();
     }
 
     public function getHeaders(): array {
@@ -27,31 +32,37 @@ class Csv extends Parser {
      *
      * @param resource $fileHandle - The file handle to the CSV file
      * @param callable $rowCallback - Called for each data row: ($row, $rowIndex, $headers)
-     * @param callable|null $progressCallback - Optional. Called for each row with byte-based progress:
-     *                                          ($bytesRead, $totalBytes). No pre-pass needed.
      */
-    public function parse($fileHandle, callable $rowCallback, ?callable $progressCallback = null): void {
-        $rowIndex = 0;
+    public function parse($fileHandle, callable $rowCallback): void {
         $this->rows = 0;
-        $totalBytes = $progressCallback !== null ? fstat($fileHandle)['size'] : 0;
+        $totalBytes = fstat($fileHandle)['size'] ?? 0;
+        $batchedRows = [];
 
         // We don't use the fgetcsv function to change the file encoding to UTF-8.
         while(($row = fgets($fileHandle)) !== false) {
-            $this->rows++;
-            if($this->hasHeaderRow && $rowIndex === 0) {
-                $rowIndex++;
+            
+            if($this->hasHeaderRow && $this->rows === 0) {
+                $this->rows++;
                 continue;
             }
 
             $row = $this->toUtf8($row);
             $row = $this->parseRow($row);
-            $rowCallback($row, $rowIndex, $this->headers);
-
-            if($progressCallback !== null) {
-                $progressCallback(ftell($fileHandle), $totalBytes, $rowIndex);
+            $batchedRows[] = $row;
+            $rowCallback($row, $this->rows, $this->headers);
+            
+            $batchedCount = count($batchedRows);
+            if($batchedCount > 0 && count($batchedRows) % $this->batchSize === 0) {
+                $this->batchListener->call($batchedRows);
+                $batchedRows = [];
             }
-
-            $rowIndex++;
+            
+            $this->progressListener->call(ftell($fileHandle), $totalBytes, $this->rows);
+            $this->rows++;
+        }
+        
+        if(!empty($batchedRows)) {
+            $this->batchListener->call($batchedRows);
         }
     }
 
@@ -75,7 +86,7 @@ class Csv extends Parser {
         if($this->hasHeaderRow) {
             $utf8Line = $this->toUtf8($row);
             $headers = $this->fromCsvLine($utf8Line);
-            $headers = array_map(fn ($header) => trim($header), $headers);
+            $headers = array_map(fn($header) => trim($header), $headers);
         } else {
             $headers = $this->generateNumberHeaders($row);
         }
@@ -130,11 +141,12 @@ class Csv extends Parser {
      * @return array|string $data - The converted data
      */
     private function toUtf8(array|string $data): array|string {
-        if($this->isUtf8()) return $data;
+        if($this->isUtf8())
+            return $data;
 
         $tgt = 'UTF-8';
         if(is_array($data)) {
-            $data = array_map(fn ($str) => iconv($this->encoding, $tgt, $str), $data);
+            $data = array_map(fn($str) => iconv($this->encoding, $tgt, $str), $data);
         } else {
             $data = iconv($this->encoding, $tgt, $data);
         }

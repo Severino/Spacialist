@@ -110,7 +110,6 @@
                             {{ t(`main.importer.validate`) }}
                         </LoadingButton>
                         <div
-                            v-else
                             class="btn-group"
                         >
                             <button
@@ -122,7 +121,6 @@
                             <LoadingButton
                                 :loading="state.uploading"
                                 class="btn btn-sm btn-outline-primary"
-                                :disabled="!canImport || state.uploading"
                                 @click="upload"
                             >
                                 {{ t(`main.importer.import_btn`) }}
