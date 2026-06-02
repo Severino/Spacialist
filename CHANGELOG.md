@@ -32,7 +32,7 @@ All notable changes to this project will be documented in this file.
     - Removed 'remember_web' cookie
 - Moved _attempt_ logic into User model.
 - Removed "Remember Me" toggle from login screen
-- Removed UrlUtils, instead the `SESSION_PATH` should be set in the .env file explicitly
+- Session cookie path can be overridden via `SESSION_PATH` (defaults to `UrlUtils::getSubPath(APP_URL)` to support multiple instances under one domain)
 - Moved plugin state into separate store
 - Plugins no longer require a routes file
 
