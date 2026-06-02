@@ -24,7 +24,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class UserController extends Controller {
     public function __construct() {
-        $this->middleware('auth:sanctum', ['except' => ['checkAuth', 'login']]);
+        $this->middleware('auth:sanctum', ['except' => ['login']]);
     }
 
     // GET
@@ -153,21 +153,6 @@ class UserController extends Controller {
     public function downloadAvatar(Request $request): JsonResponse|BinaryFileResponse {
         $filepath = $request->query('path');
         return User::getDirectory()->download($filepath);
-    }
-    
-    public function checkAuth(Request $request) {
-        if(Auth::guard('web')->check()) {
-            $user = auth()->user();
-            $user->setPermissions();
-            return response()->json([
-                'auth' => true,
-                'user' => $user
-            ]);
-        } else {
-            return response()->json([
-                'auth' => false
-            ]);
-        }
     }
 
     // POST

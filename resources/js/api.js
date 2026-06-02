@@ -212,10 +212,6 @@ export async function getMapProjection(srid) {
     );
 }
 
-export async function checkAuth() {
-    return $httpQueue.add(() => http.get('/auth/check').then(response => response.data));
-}
-
 // POST
 export async function checkAccess(endpoint = '/') {
     const data = {

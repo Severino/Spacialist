@@ -5,7 +5,6 @@ import {
 import {
     addRole,
     addUser,
-    checkAuth,
     confirmUserPassword,
     deactivateUser,
     deleteRole,
@@ -27,7 +26,7 @@ import {
 import useSystemStore from './system.js';
 
 import {
-    toApp, 
+    toApp,
     toLogin,
 } from "@/bootstrap/router.js";
 
@@ -120,7 +119,7 @@ export const useUserStore = defineStore('user', {
         getRoles: state => excludePermissions => {
             return excludePermissions ? state.roles.map(r => {
                 // Remove permissions from role
-                let {permissions, ...role} = r;
+                let { permissions, ...role } = r;
                 return role;
             }) : state.roles;
         },
@@ -146,13 +145,19 @@ export const useUserStore = defineStore('user', {
         },
     },
     actions: {
-        async checkAuth() {
-            try{
+        async checkAuth(preventRedirect = false) {
+            try {
+                // Need to fetch CSRF cookie before fetching user, 
+                // otherwise may get 419 error if session expired
+                await getCsrfCookie();
                 const user = await fetchUser();
-                console.log('Fetched user', user);
-                this.setActiveUser(user);
-                return user;
+                if(user?.id) {
+                    this.initialize(user);
+                } else {
+                    throw new Error('Not authenticated');
+                }
             } catch {
+                this.setLoggedOutState();
                 return null;
             }
         },
@@ -172,17 +177,6 @@ export const useUserStore = defineStore('user', {
             await getCsrfCookie();
             const user = await login(credentials);
             this.initialize(user);
-        },
-        async checkAuth() {
-            await getCsrfCookie();
-            const response = await checkAuth();
-            if(response.auth) {
-                this.initialize(response.user);
-            } else {
-                this.setLoggedOutState();
-            }
-
-            return response;
         },
         async logout() {
             await logout();
