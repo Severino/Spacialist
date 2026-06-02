@@ -1,8 +1,7 @@
 <?php
 
-use Illuminate\Support\Str;
-
 use App\Utils\UrlUtils;
+use Illuminate\Support\Str;
 
 return [
 
@@ -128,7 +127,7 @@ return [
 
     'cookie' => env(
         'SESSION_COOKIE',
-        'spacialist_'.Str::slug(env('APP_NAME', 'spacialist_demo'), '_').'_session'
+        Str::slug(env('APP_NAME', 'spacialist_demo'), '_').'_session'
     ),
 
     /*
@@ -139,10 +138,13 @@ return [
     | The session cookie path determines the path for which the cookie will
     | be regarded as available. Typically, this will be the root path of
     | your application but you are free to change this when necessary.
-    |
+    | 
+    | @Spacialist: By default we take the subpath of the app URL, as we often deploy multiple
+    | applications at the same domain. This way we can separate the cookies of the applications.
+    | The user can still decide to use their own custom path by setting the SESSION_DOMAIN environment variable.
     */
 
-    'path' => UrlUtils::getSubPath(env('APP_URL', '/')),
+    'path' => env('SESSION_PATH', UrlUtils::getSubPath(env('APP_URL', '/'))),
 
     /*
     |--------------------------------------------------------------------------

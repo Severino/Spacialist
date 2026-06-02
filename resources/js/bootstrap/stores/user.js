@@ -25,6 +25,11 @@ import {
 
 import useSystemStore from './system.js';
 
+import {
+    toApp,
+    toLogin,
+} from "@/bootstrap/router.js";
+
 const updateUserAt = (context, userId, data, isProfile) => {
     const idx = context.users.findIndex(u => u.id == userId);
     if(idx > -1) {
@@ -59,7 +64,7 @@ const updateUserAt = (context, userId, data, isProfile) => {
 
 export const useUserStore = defineStore('user', {
     state: _ => ({
-        user: null,
+        user: {},
         users: [],
         deletedUsers: [],
         roles: [],
@@ -114,7 +119,7 @@ export const useUserStore = defineStore('user', {
         getRoles: state => excludePermissions => {
             return excludePermissions ? state.roles.map(r => {
                 // Remove permissions from role
-                let {permissions, ...role} = r;
+                let { permissions, ...role } = r;
                 return role;
             }) : state.roles;
         },
@@ -136,37 +141,46 @@ export const useUserStore = defineStore('user', {
             };
         },
         userLoggedIn(state) {
-            return !!state.user;
-        }
+            return !!state.user?.id;
+        },
     },
     actions: {
-        async checkAuth() {
-            try{
+        async checkAuth(preventRedirect = false) {
+            try {
+                // Need to fetch CSRF cookie before fetching user, 
+                // otherwise may get 419 error if session expired
+                await getCsrfCookie();
                 const user = await fetchUser();
-                console.log('Fetched user', user);
-                this.setActiveUser(user);
-                return user;
+                if(user?.id) {
+                    this.initialize(user);
+                } else {
+                    throw new Error('Not authenticated');
+                }
             } catch {
+                this.setLoggedOutState();
                 return null;
             }
         },
-        // setLoginState(value) {
-        //     this.userLoggedIn = value;
-        // },
         setPreferences(preferences) {
             this.preferences = preferences;
+        },
+        async initialize(user) {
+            this.setActiveUser(user);
+            toApp();
+        },
+        setLoggedOutState() {
+            if(!this.userLoggedIn) return;
+            this.setActiveUser({});
+            toLogin();
         },
         async login(credentials) {
             await getCsrfCookie();
             const user = await login(credentials);
-            // this.userLoggedIn = true;
-            this.setActiveUser(user);
-            await useSystemStore().initialize();
+            this.initialize(user);
         },
         async logout() {
             await logout();
-            // this.setLoginState(false);
-            this.setActiveUser({});
+            this.setLoggedOutState();
         },
         setActiveUser(user, merge = false) {
             if(merge) {

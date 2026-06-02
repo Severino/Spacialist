@@ -13,6 +13,10 @@ use App\Observers\CommentObserver;
 use App\Observers\EntityObserver;
 use App\Observers\EntityAttributeObserver;
 use App\Observers\ReferenceObserver;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use App\Listeners\BroadcastUserLogin;
+use App\Listeners\BroadcastUserLogout;
 use Illuminate\Database\Events\MigrationEnded;
 use Illuminate\Database\Events\MigrationStarted;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -28,6 +32,12 @@ class EventServiceProvider extends ServiceProvider
         // 'App\Events\Event' => [
         //     'App\Listeners\EventListener',
         // ],
+        Login::class => [
+            BroadcastUserLogin::class,
+        ],
+        Logout::class => [
+            BroadcastUserLogout::class,
+        ],
         MigrationStarted::class => [
             DisableMigrationLogging::class,
         ],

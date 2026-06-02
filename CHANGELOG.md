@@ -14,16 +14,25 @@ All notable changes to this project will be documented in this file.
 - Added specific log file for plugins
 - Multi move in entity tree
 - Option to set entity attributes as required fields
+- User Login/Logout are now broadcasted on the system channel
 ### Fixed
 - Removed redundant calls to the entity endpoint
 - Metadata tab error on submit (unknown variable)
 - Errors in _map.js_
+- Fixed Broadcasting exception in EntityObserver
 - Login was not routed properly
 ### Changed
 - Alerts can now be dismissed
 - Now entity metadata is only loaded when accessing the metadata tab
 - Migrations now have logging automatically disabled
 - Migrations that require filesystem changes can now be handled using the `App\Traits\FilesystemMigration` trait (call `$this->safelyMoveDirectoryBetweenDisks(...)` with `ALLOW_FILESYTEM_MIGRATIONS` set to `true`)
+- XSRF Token get's a custom name depending on the deployed app-name. Allows for deploying multiple instances on the same domain at different paths.
+- Removed legacy remember functionality (was replaced by Laravel Sanctum)
+    - Removed 'remember_token' from user table
+    - Removed 'remember_web' cookie
+- Moved _attempt_ logic into User model.
+- Removed "Remember Me" toggle from login screen
+- Session cookie path can be overridden via `SESSION_PATH` (defaults to `UrlUtils::getSubPath(APP_URL)` to support multiple instances under one domain)
 - Moved plugin state into separate store
 - Plugins no longer require a routes file
 
