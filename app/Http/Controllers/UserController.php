@@ -202,7 +202,6 @@ class UserController extends Controller {
             ], 400);
         }
 
-        $user->attemptLogin();
         if(!$user->hasLoginAttemptsLeft()) {
             return response()->json([
                 'error' => __('Password confirmation expired')
@@ -216,6 +215,7 @@ class UserController extends Controller {
             ], 400);
         }
 
+        $user->attemptLogin();
         $request->session()->regenerate();
         $user->setPermissions();
 
