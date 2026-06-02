@@ -365,11 +365,11 @@ export function toLogin() {
     // Only append redirect query if from another route than login
     // to prevent recursivly appending current route's full path
     // on reloading login page
-    const redirectPath = isLogin ? '' : router.currentRoute.value.fullPath;
+    const redirectPath = isLogin ? null : router.currentRoute.value.fullPath;
 
     router.push({
         name: 'login',
-        query: redirectPath,
+        query: redirectPath ? { redirectTo: redirectPath } : {},
     });
 }
 
