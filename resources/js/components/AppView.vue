@@ -454,7 +454,7 @@
         setup(props) {
             const { t, locale } = useI18n();
             const currentRoute = useRoute();
-            
+
             const pluginStore = usePluginStore();
             const systemStore = useSystemStore();
             const userStore = useUserStore();
@@ -546,11 +546,11 @@
             const deleteNotification = event => {
                 deleteNotificationHelper(event);
             };
-            const logout = _ => {
-                userStore.logout().then(_ => {
-                    router.push({
-                        name: 'login'
-                    });
+            const logout = async _ => {
+                await userStore.logout()
+                console.log('logged out');
+                router.push({
+                    name: 'login'
                 });
             };
             const showAboutModal = _ => {

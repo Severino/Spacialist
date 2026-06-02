@@ -280,7 +280,15 @@ export const router = createRouter({
                         auth: true
                     }
                 },
-            ]
+            ],
+            beforeEnter: async (to, from, next) => {
+                const userStore = useUserStore();
+                if(!userStore.userLoggedIn) {
+                    next({ name: 'login', query: { redirectTo: to.fullPath } });
+                } else {
+                    next();
+                }
+            }
         },
         {
             path: '/login',

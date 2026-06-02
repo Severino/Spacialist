@@ -136,7 +136,7 @@ export const useUserStore = defineStore('user', {
             };
         },
         userLoggedIn(state) {
-            return !!state.user;
+            return !!state.user?.id;
         }
     },
     actions: {
@@ -165,7 +165,6 @@ export const useUserStore = defineStore('user', {
         },
         async logout() {
             await logout();
-            // this.setLoginState(false);
             this.setActiveUser({});
         },
         setActiveUser(user, merge = false) {

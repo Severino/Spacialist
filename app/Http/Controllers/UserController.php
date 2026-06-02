@@ -281,11 +281,11 @@ class UserController extends Controller {
     }
 
     public function logout(Request $request) {
-        Auth::guard('web')->logout(true);
-        // auth()->invalidate(true);
+        Auth::guard('web')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        return response()->json(null, 204);
     }
 
     // PATCH
