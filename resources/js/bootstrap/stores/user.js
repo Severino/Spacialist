@@ -5,6 +5,7 @@ import {
 import {
     addRole,
     addUser,
+    checkAuth,
     confirmUserPassword,
     deactivateUser,
     deleteRole,
@@ -24,6 +25,11 @@ import {
 } from '@/helpers/helpers.js';
 
 import useSystemStore from './system.js';
+
+import {
+    toApp, 
+    toLogin,
+} from "@/bootstrap/router.js";
 
 const updateUserAt = (context, userId, data, isProfile) => {
     const idx = context.users.findIndex(u => u.id == userId);
@@ -59,7 +65,6 @@ const updateUserAt = (context, userId, data, isProfile) => {
 
 export const useUserStore = defineStore('user', {
     state: _ => ({
-        userLoggedIn: false,
         user: {},
         users: [],
         deletedUsers: [],
@@ -136,6 +141,9 @@ export const useUserStore = defineStore('user', {
                 return state.rolePresets.find(preset => preset[prop] = value) || {};
             };
         },
+        userLoggedIn(state) {
+            return !!state.user?.id;
+        },
     },
     actions: {
         async checkAuth() {
@@ -147,23 +155,37 @@ export const useUserStore = defineStore('user', {
                 return null;
             }
         },
-        setLoginState(value) {
-            this.userLoggedIn = value;
-        },
         setPreferences(preferences) {
             this.preferences = preferences;
+        },
+        async initialize(user) {
+            this.setActiveUser(user);
+            toApp();
+        },
+        setLoggedOutState() {
+            if(!this.userLoggedIn) return;
+            this.setActiveUser({});
+            toLogin();
         },
         async login(credentials) {
             await getCsrfCookie();
             const user = await login(credentials);
-            this.userLoggedIn = true;
-            this.setActiveUser(user);
-            await useSystemStore().initialize();
+            this.initialize(user);
+        },
+        async checkAuth() {
+            await getCsrfCookie();
+            const response = await checkAuth();
+            if(response.auth) {
+                this.initialize(response.user);
+            } else {
+                this.setLoggedOutState();
+            }
+
+            return response;
         },
         async logout() {
             await logout();
-            this.setLoginState(false);
-            this.setActiveUser({});
+            this.setLoggedOutState();
         },
         setActiveUser(user, merge = false) {
             if(merge) {

@@ -10,15 +10,25 @@ All notable changes to this project will be documented in this file.
 - API endpoint for getting all entity details data in one request: GET::v1/entity/{id}/entity_detail
 - Multi move in entity tree
 - Option to set entity attributes as required fields
+- User Login/Logout are now broadcasted on the system channel
 ### Fixed
 - Removed redundant calls to the entity endpoint
 - Metadata tab error on submit (unknown variable)
 - Errors in _map.js_
+- Fixed Broadcasting exception in EntityObserver
+
 ### Changed
 - Alerts can now be dismissed
 - Now entity metadata is only loaded when accessing the metadata tab
 - Migrations now have logging automatically disabled
 - Migrations that require filesystem changes can now be handled using the `App\Traits\FilesystemMigration` trait (call `$this->safelyMoveDirectoryBetweenDisks(...)` with `ALLOW_FILESYTEM_MIGRATIONS` set to `true`)
+- XSRF Token get's a custom name depending on the deployed app-name. Allows for deploying multiple instances on the same domain at different paths.
+- Removed legacy remember functionality (was replaced by Laravel Sanctum)
+    - Removed 'remember_token' from user table
+    - Removed 'remember_web' cookie
+- Moved _attempt_ logic into User model.
+- Removed "Remember Me" toggle from login screen
+- Removed UrlUtils, instead the `SESSION_PATH` should be set in the .env file explicitly
 
 ## 0.11.1
 ### Added

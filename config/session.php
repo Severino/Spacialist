@@ -2,8 +2,6 @@
 
 use Illuminate\Support\Str;
 
-use App\Utils\UrlUtils;
-
 return [
 
     /*
@@ -128,7 +126,7 @@ return [
 
     'cookie' => env(
         'SESSION_COOKIE',
-        'spacialist_'.Str::slug(env('APP_NAME', 'spacialist_demo'), '_').'_session'
+        Str::slug(env('APP_NAME', 'spacialist_demo'), '_').'_session'
     ),
 
     /*
@@ -142,7 +140,7 @@ return [
     |
     */
 
-    'path' => UrlUtils::getSubPath(env('APP_URL', '/')),
+    'path' => env('SESSION_PATH', '/'),
 
     /*
     |--------------------------------------------------------------------------
