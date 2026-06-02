@@ -249,7 +249,7 @@ export const usePluginStore = defineStore('plugin', {
             this.plugins = [];
             this.pluginStores = {};
         },
-        async remove() {
+        async remove(id) {
             return remove(id).then(data => {
                 this.apply({
                     plugin_id: id,
