@@ -96,7 +96,7 @@ export const useUserStore = defineStore('user', {
             return (value, prop = 'id') => {
                 if(!value) return null;
 
-                if(state.userLoggedIn) {
+                if(this.userLoggedIn) {
                     const isNum = !isNaN(value);
                     const lValue = isNum ? value : value.toLowerCase();
                     if(prop == 'id' && value == state.user?.id) {
@@ -149,6 +149,7 @@ export const useUserStore = defineStore('user', {
         async checkAuth() {
             try{
                 const user = await fetchUser();
+                console.log('Fetched user', user);
                 this.setActiveUser(user);
                 return user;
             } catch {

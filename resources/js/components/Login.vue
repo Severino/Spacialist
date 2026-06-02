@@ -93,6 +93,8 @@
         import {
             reactive,
             onMounted,
+            computed,
+            watch,
         } from 'vue';
 
         import { useI18n } from 'vue-i18n';
@@ -114,12 +116,14 @@
                 // DATA
                 const state = reactive({
                     user: {},
-                    redirect: {
-                        name: 'home'
-                    },
                     submitting: false,
                     error: {},
                 });
+                
+                const redirectRoute = computed(_=> {
+                    const currentRoute = useRoute();
+                    return currentRoute?.query?.redirectTo || { name: 'home' };
+                })
 
                 // FUNCTIONS
                 const login = async _ => {
@@ -139,13 +143,7 @@
                         .then(_ => {
                             state.submitting = false;
                             state.error = {};
-                            if(route.query.redirectTo) {
-                                router.push(route.query.redirectTo);
-                            } else {
-                                router.push({
-                                    name: 'home',
-                                });
-                            }
+                            router.push(redirectRoute.value);
                         })
                         .catch(e => {
                             state.submitting = false;
@@ -158,28 +156,16 @@
                 // ON MOUNTED
                 onMounted(_ => {
                     if(userStore.userLoggedIn) {
-                        router.push({
-                            name: 'home'
-                        });
+                        router.push(redirectRoute.value);
+                    } else {
+                        console.log('User not logged in, showing login form'); // DEBUG
                     }
-                    // if(auth.check()) {
-                    //     router.push({
-                    //         name: 'home'
-                    //     });
-                    // }
-                    // const lastRoute = auth.redirect() ? auth.redirect().from : undefined;
-                    // const currentRoute = useRoute();
-                    // if(lastRoute && lastRoute.name != 'login') {
-                    //     state.redirect = {
-                    //         name: lastRoute.name,
-                    //         params: lastRoute.params,
-                    //         query: lastRoute.query
-                    //     };
-                    // } else if(currentRoute.query && currentRoute.query.redirect) {
-                    //     state.redirect = {
-                    //         path: currentRoute.query.redirect
-                    //     };
-                    // }
+                });
+                
+                watch(userStore.userLoggedIn, (loggedIn) => {
+                    if(loggedIn) {
+                        router.push(redirectRoute.value);
+                    }
                 });
 
                 // RETURN
@@ -188,6 +174,7 @@
                     state,
                     login,
                     getValidClass,
+                    userStore,
                 };
             },
         }

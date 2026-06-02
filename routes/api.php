@@ -1,8 +1,6 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Broadcast;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,11 +17,12 @@ Route::middleware('auth:sanctum')->prefix('download')->group(function () {
     Route::get('/avatar', 'UserController@downloadAvatar');
     Route::get('/bibliography', 'BibliographyController@downloadFile');
     Route::get('/plugin/{filepath}', 'PluginController@downloadScript');
+    Route::get('/plugin/css/{filepath}', 'PluginController@downloadCss');
 });
 
-Route::middleware('auth:sanctum')->prefix('v1')->group(function() {
+Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/pre', 'HomeController@getGlobalData');
-    Route::get('/version', function() {
+    Route::get('/version', function () {
         $versionInfo = new App\VersionInfo();
         return response()->json([
             'full' => $versionInfo->getFullRelease(),
@@ -38,20 +37,37 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function() {
 });
 
 // PLUGINS
-Route::middleware('auth:sanctum')->prefix('v1/plugin')->group(function() {
+Route::middleware('auth:sanctum')->prefix('v1/plugin')->group(function () {
     Route::get('', 'PluginController@getPlugins');
-    Route::get('/{id}', 'PluginController@installPlugin')->where('id', '[0-9]+');
+    Route::get('/{plugin}/changelog', 'PluginController@getChangelog');
+    Route::get('/migrate/{plugin}/check', 'PluginController@getMigrationState');
+});
 
+Route::middleware('auth:sanctum')->middleware(['can:plugin_write'])->prefix('v1/plugin')->group(function () {
+    // TODO: This route modifies the server state and should be a post or patch request:
+    Route::get('/{plugin}', 'PluginController@installPlugin');
+    
+    Route::post('/refresh', 'PluginController@refresh');
+    Route::post('/refresh_info/{plugin}', 'PluginController@refreshInfo');
+    Route::post('/{plugin}/publish_script', 'PluginController@publishScript');
+    Route::post('/migrate/{plugin}', 'PluginController@migrate');
+    Route::post('/migrate/{plugin}/rollback', 'PluginController@rollback');
+    Route::post('/migrate/{plugin}/force_add', 'PluginController@addMigrationToDatabase');
+    
+    // TODO: To 'disable' a plugin is just a modification, not a deletion operation:
+    Route::delete('/{plugin}', 'PluginController@uninstallPlugin');
+});
+
+Route::middleware('auth:sanctum')->middleware(['can:plugin_create'])->prefix('v1/plugin')->group(function () {
     Route::post('', 'PluginController@uploadPlugin');
+});
 
-    Route::patch('/{id}', 'PluginController@updatePlugin')->where('id', '[0-9]+');
-
-    Route::delete('/{id}', 'PluginController@uninstallPlugin')->where('id', '[0-9]+');
-    Route::delete('/remove/{id}', 'PluginController@removePlugin')->where('id', '[0-9]+');
+Route::middleware('auth:sanctum')->middleware(['can:plugin_delete'])->prefix('v1/plugin')->group(function () {
+    Route::delete('/remove/{plugin}', 'PluginController@removePlugin');
 });
 
 // ENTITY
-Route::middleware('auth:sanctum')->prefix('v1/entity')->group(function() {
+Route::middleware('auth:sanctum')->prefix('v1/entity')->group(function () {
     Route::get('/top', 'EntityController@getTopEntities');
     Route::get('/{id}', 'EntityController@getEntity')->where('id', '[0-9]+');
 
@@ -86,7 +102,7 @@ Route::middleware('auth:sanctum')->prefix('v1/entity')->group(function() {
 });
 
 // SEARCH
-Route::middleware('auth:sanctum')->prefix('v1/search')->group(function() {
+Route::middleware('auth:sanctum')->prefix('v1/search')->group(function () {
     Route::get('', 'SearchController@searchGlobal');
     Route::get('/entity', 'SearchController@searchEntityByName');
     Route::get('/entity-type', 'SearchController@searchEntityTypes');
@@ -96,7 +112,7 @@ Route::middleware('auth:sanctum')->prefix('v1/search')->group(function() {
 });
 
 // EDITOR
-Route::middleware('auth:sanctum')->prefix('v1/editor')->group(function() {
+Route::middleware('auth:sanctum')->prefix('v1/editor')->group(function () {
     Route::get('/dm/entity_type/occurrence_count/{id}', 'EditorController@getEntityTypeOccurrenceCount')->where('id', '[0-9]+');
     Route::get('/dm/attribute/occurrence_count/{aid}', 'EditorController@getAttributeValueOccurrenceCount')->where('aid', '[0-9]+');
     Route::get('/dm/attribute/occurrence_count/{aid}/{ctid}', 'EditorController@getAttributeValueOccurrenceCount')->where('aid', '[0-9]+')->where('ctid', '[0-9]+');
@@ -126,13 +142,12 @@ Route::middleware('auth:sanctum')->prefix('v1/editor')->group(function() {
 // USER
 Route::middleware('web')->prefix('v1')->group(function() {
     Route::get('/auth/check', 'UserController@checkAuth');
-    
     Route::post('/auth/login', 'UserController@login');
     Route::post('/auth/logout', 'UserController@logout');
 });
 
 
-Route::middleware('auth:sanctum')->prefix('v1')->group(function() {
+Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/refresh', 'UserController@refreshSession');
     Route::get('/auth/user', 'UserController@getUser');
     Route::get('/user', 'UserController@getUsers');
@@ -167,7 +182,7 @@ Route::middleware('auth:sanctum')->prefix('v1/comment')->group(function () {
 });
 
 // NOTIFICATIONS
-Route::middleware('auth:sanctum')->prefix('v1/notification')->group(function() {
+Route::middleware('auth:sanctum')->prefix('v1/notification')->group(function () {
     Route::patch('/read/{id}', 'NotificationController@markNotificationAsRead');
     Route::patch('/read', 'NotificationController@markAllNotificationsAsRead');
 
@@ -177,14 +192,14 @@ Route::middleware('auth:sanctum')->prefix('v1/notification')->group(function() {
 });
 
 // PREFERENCES
-Route::middleware('auth:sanctum')->prefix('v1/preference')->group(function() {
+Route::middleware('auth:sanctum')->prefix('v1/preference')->group(function () {
     Route::get('', 'PreferenceController@getPreferences');
 
     Route::patch('', 'PreferenceController@patchPreferences');
 });
 
 // BIBLIOGRAPHY
-Route::middleware('auth:sanctum')->prefix('v1/bibliography')->group(function() {
+Route::middleware('auth:sanctum')->prefix('v1/bibliography')->group(function () {
     Route::get('/', 'BibliographyController@getBibliography');
     Route::get('/{id}', 'BibliographyController@getBibliographyItem')->where('id', '[0-9]+');
     Route::get('/{id}/ref_count', 'BibliographyController@getReferenceCount')->where('id', '[0-9]+');
@@ -201,7 +216,7 @@ Route::middleware('auth:sanctum')->prefix('v1/bibliography')->group(function() {
 });
 
 // ACTIVITY LOG
-Route::middleware('auth:sanctum')->prefix('v1/activity')->group(function() {
+Route::middleware('auth:sanctum')->prefix('v1/activity')->group(function () {
     Route::get('', 'ActivityController@getAll');
     Route::get('/{id}', 'ActivityController@getByUser')->where('id', '[0-9]+');
 
@@ -221,7 +236,7 @@ Route::middleware('auth:sanctum')->prefix('v1/tag')->group(function() {
  * system accordingly.
  */
 
- // EXTENSIONS
+// EXTENSIONS
 // FILE
 // Route::middleware('auth:sanctum')->prefix('v1/file')->group(function() {
 //     Route::get('/{id}', 'FileController@getFile')->where('id', '[0-9]+');
@@ -235,25 +250,25 @@ Route::middleware('auth:sanctum')->prefix('v1/tag')->group(function() {
 // });
 
 // MAP
-Route::middleware('auth:sanctum')->prefix('v1/map')->group(function() {
-    Route::post('epsg/text', 'MapController@getEpsgByText');
+// Route::middleware('auth:sanctum')->prefix('v1/map')->group(function() {
+//     Route::post('epsg/text', 'MapController@getEpsgByText');
 
-    Route::patch('/{id}', 'MapController@updateGeometry')->where('id', '[0-9]+');
-    Route::patch('/layer/{id}/switch', 'MapController@changeLayerPositions')->where('id', '[0-9]+');
-    Route::patch('/layer/{id}/move', 'MapController@moveLayer')->where('id', '[0-9]+');
+//     Route::patch('/{id}', 'MapController@updateGeometry')->where('id', '[0-9]+');
+//     Route::patch('/layer/{id}/switch', 'MapController@changeLayerPositions')->where('id', '[0-9]+');
+//     Route::patch('/layer/{id}/move', 'MapController@moveLayer')->where('id', '[0-9]+');
 
-    Route::delete('/{id}', 'MapController@delete')->where('id', '[0-9]+');
-});
+//     Route::delete('/{id}', 'MapController@delete')->where('id', '[0-9]+');
+// });
 
 // ANALYSIS
-Route::middleware('auth:sanctum')->prefix('v1/analysis')->group(function() {
-    Route::post('export', 'AnalysisController@export');
-    Route::post('export/{type}', 'AnalysisController@export');
-    Route::post('filter', 'AnalysisController@applyFilterQuery');
-});
+// Route::middleware('auth:sanctum')->prefix('v1/analysis')->group(function() {
+//     Route::post('export', 'AnalysisController@export');
+//     Route::post('export/{type}', 'AnalysisController@export');
+//     Route::post('filter', 'AnalysisController@applyFilterQuery');
+// });
 
 // Open Access
-Route::prefix('v1/open')->group(function() {
+Route::prefix('v1/open')->group(function () {
     Route::get('global', 'OpenAccessController@getGlobals');
     Route::get('attributes', 'OpenAccessController@getAttributes');
     Route::get('types', 'OpenAccessController@getEntityTypes');
