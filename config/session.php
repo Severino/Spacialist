@@ -144,7 +144,7 @@ return [
     | The user can still decide to use their own custom path by setting the SESSION_DOMAIN environment variable.
     */
 
-    'path' => env('SESSION_DOMAIN', UrlUtils::getSubPath(env('APP_URL', '/'))),
+    'path' => env('SESSION_PATH', UrlUtils::getSubPath(env('APP_URL', '/'))),
 
     /*
     |--------------------------------------------------------------------------
