@@ -78,6 +78,7 @@ class PluginController extends Controller {
 
         $pluginName = $uploadResult->pluginName;
 
+        $success = false;
         if($uploadResult->isUpdate()) {
             $plugin = $uploadResult->plugin;
             $success = DB::transaction(function () use ($plugin) {
