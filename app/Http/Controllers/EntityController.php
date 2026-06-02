@@ -857,13 +857,24 @@ class EntityController extends Controller {
             $aid = $patch['params']['aid'];
             // FIXME [VR]: `?? null` is only necessary, because of temporary AttributeValue::handlePatch() implementation
             $value = $patch['value'] ?? null;
-            $error = AttributeValue::handlePatch($id, $aid, $value, $op, $user, $addedAttributes, $removedAttributes);
+            $error = AttributeValue::handlePatch($entity, $aid, $value, $op, $user, $addedAttributes, $removedAttributes);
             if($error !== false) {
-                DB::rollback();
+                DB::rollBack();
                 return response()->json([
                     'error' => $error['message'],
             ], $error['code']);
             }
+        }
+
+        $requiredAttributes = $entity->entity_type->required_attributes->pluck('attribute_id');
+        $existingValues = AttributeValue::where('entity_id', $entity->id)
+            ->whereIn('attribute_id', $requiredAttributes)
+            ->count();
+        if(count($requiredAttributes) != $existingValues) {
+            DB::rollBack();
+            return response()->json([
+                'error' => __('Required attribute is missing.'),
+            ], 422);
         }
 
         // Save model if last editor changed
@@ -1115,7 +1126,7 @@ class EntityController extends Controller {
         ]);
 
         $entity;
-        try{
+        try {
             $entity = Entity::findOrFail($id);
         } catch(ModelNotFoundException $e) {
             return response()->json([
@@ -1126,7 +1137,7 @@ class EntityController extends Controller {
         $rank = $request->get('rank') ?? null;
         $parent_id = $request->get('parent_id') ?? null;
 
-        try{
+        try {
             $entity->move($parent_id, $rank, $user);
         } catch(Exception $e) {
             return response()->json([
@@ -1135,6 +1146,66 @@ class EntityController extends Controller {
         }
 
         return response()->json(null, 204);
+    }
+
+    public function moveEntities(Request $request) {
+        $user = auth()->user();
+        if(!$user->can('entity_write')) {
+            return response()->json([
+                'error' => __('You do not have the permission to modify an entity'),
+            ], 403);
+        }
+        $this->validate($request, [
+            'entity_ids' => 'required|array',
+            'parent_id' => 'nullable|integer|exists:entities,id',
+        ]);
+
+        $entityIds = $request->get('entity_ids');
+        $parentId = $request->get('parent_id');
+
+        foreach($entityIds as $id) {
+            if($id == $parentId) {
+                return response()->json([
+                    'error' => __('An entity cannot be its own parent'),
+                ], 400);
+            }
+        }
+
+        $parent = null;
+        if(isset($parentId)) {
+            $parent = Entity::find($parentId);
+            if(!isset($parent)) {
+                return response()->json([
+                    'error' => __('The parent entity does not exist'),
+                ], 400);
+            }
+        }
+
+        $startRank = Entity::getNextRank($parentId);
+        $modified = [];
+        DB::beginTransaction();
+        try {
+            for($i = 0; $i < count($entityIds); $i++) {
+                $entity = Entity::findOrFail($entityIds[$i]);
+                $entity->move($parentId, $startRank, $user);
+                $startRank++;
+
+                $modified[] = array(
+                    "entity_id" => $entity->id,
+                    "parent_id" => $entity->root_entity_id,
+                    "rank" => $entity->rank,
+                );
+            }
+        } catch(Exception $e) {
+            DB::rollBack();
+            info("Error while moving Entities:\n$e");
+            return response()->json([
+                'error' => __('An error occurred while moving the entities'),
+            ], 500);
+        }
+
+        DB::commit();
+        return response()->json($modified, 200);
     }
 
     // DELETE

@@ -94,6 +94,7 @@ Route::middleware('auth:sanctum')->prefix('v1/entity')->group(function () {
     Route::patch('/{id}/name', 'EntityController@patchName')->where('id', '[0-9]+');
     Route::patch('/{id}/metadata', 'EntityController@patchMetadata')->where('id', '[0-9]+');
     Route::patch('/{id}/rank', 'EntityController@moveEntity')->where('id', '[0-9]+');
+    Route::patch('/move', 'EntityController@moveEntities');
     Route::patch('/reference/{id}', 'ReferenceController@patchReference')->where('id', '[0-9]+');
 
     Route::delete('/{id}', 'EntityController@deleteEntity')->where('id', '[0-9]+');
@@ -222,8 +223,8 @@ Route::middleware('auth:sanctum')->prefix('v1/activity')->group(function () {
 });
 
 // TAGS
-Route::middleware('auth:sanctum')->prefix('v1/tag')->group(function () {
-    Route::get('', 'TagController@all');
+Route::middleware('auth:sanctum')->prefix('v1/tag')->group(function() {
+    Route::get('', 'TagController@getAll');
 });
 
 /**

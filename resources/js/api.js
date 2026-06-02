@@ -563,6 +563,14 @@ export async function moveEntity(entityId, {
     );
 }
 
+export async function moveMultipleEntities(entityIds, parentId) {
+    const data = {
+        parent_id: parentId,
+        entity_ids: entityIds,
+    };
+    return $httpQueue.add(() => http.patch(`/entity/move`, data));
+}
+
 export async function patchEntityType(etid, updatedProps) {
     const allowedData = only(updatedProps, ['thesaurus_url', 'is_root', 'sub_entity_types', 'color']);
     // If no allowed props updated, do nothing

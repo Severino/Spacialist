@@ -11,6 +11,7 @@
         "reset_password": "Passwort zurücksetzen",
         "cancel": "Abbrechen",
         "close": "Schließen",
+        "required": "Pflichtfeld",
         "add": "Hinzufügen",
         "edit": "Bearbeiten",
         "edited": "bearbeitet",
@@ -23,8 +24,8 @@
         "refresh": "Aktualisieren",
         "clear": "Leeren",
         "confirm": "Ok",
-        "apply": "Anwenden",
         "create": "Anlegen",
+        "apply": "Anwenden",
         "move": "Verschieben",
         "parse": "Parsen",
         "conflict": "Konflikt",
@@ -505,6 +506,10 @@
                 "deleted": {
                     "title": "Entität gelöscht",
                     "msg": "{name} wurde erfolgreich gelöscht."
+                },
+                "required_missing": {
+                    "title": "Pflichtfelder fehlen",
+                    "msg": "Bitte füllen Sie alle Pflichtfelder aus."
                 }
             },
             "tree": {
@@ -534,6 +539,7 @@
                 "multiedit": {
                     "title": "Mehrfachauswahl umschalten",
                     "open": "Mehrfach-Bearbeitungs-Werkzeug öffnen",
+                    "warning": "Diese Aktion wird alle ausgewählten Entitäten betreffen.",
                     "toast": {
                         "saved": {
                             "title": "Mehrfach-Bearbeitung erfolgreich",
@@ -607,6 +613,8 @@
                 },
                 "table": {
                     "add_row": "Neue Zeile hinzufügen",
+                    "add_row_above": "Neue Zeile darüber hinzufügen",
+                    "add_row_below": "Neue Zeile darunter hinzufügen",
                     "error": {
                         "deleted_entity": "Gelöschte Entität"
                     },
