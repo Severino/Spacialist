@@ -30,7 +30,7 @@
             v-for="(error, index) in errors"
             v-else
             :key="index"
-            class="alert alert-danger mb-1 py-1 px-2"
+            class="mb-1"
             :value="error"
         />
     </div>
