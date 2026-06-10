@@ -5,18 +5,15 @@ namespace App\File;
 use App\Exceptions\CsvColumnMismatchException;
 
 class Csv extends Parser {
-    private string $delimiter;
-    private bool $hasHeaderRow;
     private array $headers = [];
     private int $headerCount = 0;
-    private string $encoding = 'UTF-8';
     private int $rows = 0;
 
-    public function __construct(bool $hasHeaderRow = false, string $delimiter = ",", string $encoding = 'UTF-8') {
-        $this->hasHeaderRow = $hasHeaderRow;
-        $this->delimiter = $delimiter;
-        $this->encoding = $encoding;
-    }
+    public function __construct(
+        public readonly bool $hasHeaderRow = false,
+        public readonly string $delimiter = ",",
+        public readonly string $encoding = 'UTF-8'
+    ) { }
 
     public function getHeaders(): array {
         return $this->headers;
@@ -26,7 +23,7 @@ class Csv extends Parser {
      * Parses a CSV file.
      *
      * @param resource $fileHandle - The file handle to the CSV file
-     * @param callable $$rowCallback -
+     * @param callable $rowCallback - A callback function that will be called for each row in the CSV file ($rowCallback($row, $rowIndex, $headers))
      */
     public function parse($fileHandle, callable $rowCallback): void {
         $rowIndex = 0;

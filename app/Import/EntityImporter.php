@@ -18,7 +18,7 @@ enum Action {
     case CREATE;
     case UPDATE;
     case DELETE;
-};
+}
 
 class EntityImporter {
 
@@ -104,35 +104,44 @@ class EntityImporter {
             return $this->resolver;
         }
 
-        if($csvTable->getDataRows() == 0) {
-            $this->resolver->conflict(__("entity-importer.empty"));
-        } else {
-            try {
-                $csvTable->parse($handle, function ($row, $index) {
-                    $nameValid = $this->validateName($row, $index);
-                    $attributeValid = $this->validateAttributesInRow($row, $index);
-                    $parentPath = "";
-                    $locationValid = $this->validateLocation($row, $index, $parentPath);
 
-                    if(!$nameValid || !$attributeValid || !$locationValid) {
-                        return;
-                    }
+        try {
+            $csvTable->parse($handle, function ($row, $rowNumber) use ($csvTable) {
+                
+                // We use the row number only to track the current human readable row (1-n)
+                // Therefore we must increase the row number by one, otherwise  the header
+                // row would be zero.
+                if(!$csvTable->hasHeaderRow) {
+                    $rowNumber = $rowNumber + 1;
+                }
+            
+                $nameValid = $this->validateName($row, $rowNumber);
+                $attributeValid = $this->validateAttributesInRow($row, $rowNumber);
+                $parentPath = "";
+                $locationValid = $this->validateLocation($row, $rowNumber, $parentPath);
 
-                    $filepath = implode(self::PARENT_DELIMITER, array_filter([$parentPath, $row[$this->nameColumn]], fn($part) => !empty($part)));
-                    if($this->checkIfEntityExists($filepath)) {
-                        $this->resolver->update();
-                    } else {
-                        $this->resolver->create();
-                    }
-                });
-            } catch(CsvColumnMismatchException $csvMismatchException) {
-                return $this->resolver->conflict(__("entity-importer.csv-column-mismatch", [
-                    "data" => $csvMismatchException->dataLine,
-                    "data_count" => $csvMismatchException->dataColumns,
-                    "header_data" => $csvMismatchException->headerLine,
-                    "header_count" => $csvMismatchException->headerColumns,
-                ]));
+                if(!$nameValid || !$attributeValid || !$locationValid) {
+                    return;
+                }
+
+                $filepath = implode(self::PARENT_DELIMITER, array_filter([$parentPath, $row[$this->nameColumn]], fn($part) => !empty($part)));
+                if($this->checkIfEntityExists($filepath)) {
+                    $this->resolver->update();
+                } else {
+                    $this->resolver->create();
+                }
+            });
+
+            if($csvTable->getDataRows() == 0) {
+                $this->resolver->conflict(__("entity-importer.empty"));
             }
+        } catch(CsvColumnMismatchException $csvMismatchException) {
+            return $this->resolver->conflict(__("entity-importer.csv-column-mismatch", [
+                "data" => $csvMismatchException->dataLine,
+                "data_count" => $csvMismatchException->dataColumns,
+                "header_data" => $csvMismatchException->headerLine,
+                "header_count" => $csvMismatchException->headerColumns,
+            ]));
         }
 
         fclose($handle);
@@ -212,14 +221,14 @@ class EntityImporter {
         return true;
     }
 
-    private function validateLocation(array $row, int $rowIndex, string &$parentPath): bool {
+    private function validateLocation(array $row, int $rowNumber, string &$parentPath): bool {
 
         $parentTypeId = null;
         $parentPath = $this->getParentColumn($row);
         if(!empty($parentPath)) {
             $parentId = Entity::getFromPath($parentPath);
             if($parentId == null) {
-                $this->rowConflict($rowIndex, "entity-importer.parent-entity-does-not-exist", ["entity" => $parentPath]);
+                $this->rowConflict($rowNumber, "entity-importer.parent-entity-does-not-exist", ["entity" => $parentPath]);
                 return false;
             }
 
@@ -238,14 +247,14 @@ class EntityImporter {
                 $parentName = ThConcept::getLabel($parentTh);
             }
 
-            $this->rowConflict($rowIndex, "entity-importer.entity-type-relation-not-allowed", ["child" => $childName, "parent" => $parentName]);
+            $this->rowConflict($rowNumber, "entity-importer.entity-type-relation-not-allowed", ["child" => $childName, "parent" => $parentName]);
             return false;
         }
 
         return true;
     }
 
-    private function validateAttributesInRow($row, $index): bool {
+    private function validateAttributesInRow(array $row, int $rowNumber): bool {
         $errors = [];
         foreach($this->attributeIdToAttributeValue as $attributeId => $attribute) {
             try {
@@ -262,14 +271,14 @@ class EntityImporter {
             $errorStrings = array_map(function ($error) {
                 return "{{" . $error['column'] . "}}" . " => " . "{{" . $error['value'] . "}}";
             }, $errors);
-            $this->rowConflict($index, "entity-importer.attribute-could-not-be-imported", ["attributeErrors" => implode(", ", $errorStrings)]);
+            $this->rowConflict($rowNumber, "entity-importer.attribute-could-not-be-imported", ["attributeErrors" => implode(", ", $errorStrings)]);
         }
         return count($errors) == 0;
     }
 
-    private function rowConflict($rowIndex, $msg, $args = []) {
+    private function rowConflict(int $rowNumber, string $msg, array $args = []) {
         $tmsg = __($msg, $args);
-        $this->resolver->conflict("[" . ($rowIndex + 1) . "] " . $tmsg);
+        $this->resolver->conflict("[" . $rowNumber . "] " . $tmsg);
     }
 
     private function getParentColumn($row) {

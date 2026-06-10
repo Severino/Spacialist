@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - Removed redundant calls to the entity endpoint
 - Metadata tab error on submit (unknown variable)
 - Errors in _map.js_
+- Fixed importer reporting correct row errors and returning the matching row number for the previewed csv table
 ### Changed
 - Alerts can now be dismissed
 - Now entity metadata is only loaded when accessing the metadata tab

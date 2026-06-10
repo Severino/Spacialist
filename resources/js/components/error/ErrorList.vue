@@ -1,27 +1,39 @@
 <template>
     <div class="alert alert-danger error-list p-0 m-0">
         <header class="p-2">
-            <span class="opacity-50 me-3">Row {{ lineNumber }}</span> {{ header }} <span class="fst-italic">({{
+            <span
+                class="opacity-50 me-3"
+                v-if="lineNumber"
+            >
+                Row {{ lineNumber }}
+            </span>
+            {{ header }}
+            <span
+                v-if="hasItems"
+                class="fst-italic"
+            >({{
                 items.length }} errors)</span>
         </header>
-        <hr class="m-0 mb-3" />
-        <ol
-            v-if="hasItems"
-            class="mb-0"
-        >
-            <li
-                v-for="(item, idx) in items"
-                :key="idx"
-                style="font-size:0.8rem;"
-                class="ps-2 pe-4 mb-2 opacity-75"
-            >
-                <div class="d-flex gap-2 align-items-center flex-wrap">
-                    <div class="fst-italic">{{ item.key }}</div>
-                    has invalid value
-                    <span class="bg-light rounded py-0 px-2" style="font-size: 0.65rem;">{{item.value}}</span>
-                </div>
-            </li>
-        </ol>
+        <template v-if="hasItems">
+            <hr class="m-0 mb-3" />
+            <ol class="mb-0">
+                <li
+                    v-for="(item, idx) in items"
+                    :key="idx"
+                    style="font-size:0.8rem;"
+                    class="ps-2 pe-4 mb-2 opacity-75"
+                >
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <div class="fst-italic">{{ item.key }}</div>
+                        has invalid value
+                        <span
+                            class="bg-light rounded py-0 px-2"
+                            style="font-size: 0.65rem;"
+                        >{{ item.value }}</span>
+                    </div>
+                </li>
+            </ol>
+        </template>
     </div>
 </template>
 
@@ -53,7 +65,7 @@
             });
 
             const lineNumber = computed(_ => {
-                return fullHeader.value.match(/^\[(\d+)\]/)?.[1] ?? 'N/A';
+                return fullHeader.value.match(/^\[(\d+)\]/)?.[1];
             });
 
             const items = computed(_ => {
@@ -74,7 +86,7 @@
                     // error resistance.
                     let [header, ...body] = preservationMatches.split(props.headerSeparator);
                     body = body.join();
-                    const lines = body.split(",")
+                    const lines = body.split(",").filter(line => line.trim().length > 0);
                     console.log('lines', lines);
                     items = lines.map(line => {
                         line = line.trim();
