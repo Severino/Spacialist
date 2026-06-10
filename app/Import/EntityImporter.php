@@ -104,26 +104,35 @@ class EntityImporter {
             return $this->resolver;
         }
 
-        try {
-            $csvTable->parse($handle, function ($row, $index) {
-                $namesValid = $this->validateName($row, $index);
-                if($namesValid) {
-                    // The location depends on the name column. If the name is not correct, we can't check the location.
-                    $this->validateLocation($row, $index);
-                }
-                $this->validateAttributesInRow($row, $index);
-            });
-        } catch(CsvColumnMismatchException $csvMismatchException) {
-            return $this->resolver->conflict(__("entity-importer.csv-column-mismatch", [
-                "data" => $csvMismatchException->dataLine,
-                "data_count" => $csvMismatchException->dataColumns,
-                "header_data" => $csvMismatchException->headerLine,
-                "header_count" => $csvMismatchException->headerColumns,
-            ]));
-        }
-
         if($csvTable->getDataRows() == 0) {
             $this->resolver->conflict(__("entity-importer.empty"));
+        } else {
+            try {
+                $csvTable->parse($handle, function ($row, $index) {
+                    $nameValid = $this->validateName($row, $index);
+                    $attributeValid = $this->validateAttributesInRow($row, $index);
+                    $parentPath = "";
+                    $locationValid = $this->validateLocation($row, $index, $parentPath);
+
+                    if(!$nameValid || !$attributeValid || !$locationValid) {
+                        return;
+                    }
+
+                    $filepath = implode(self::PARENT_DELIMITER, array_filter([$parentPath, $row[$this->nameColumn]], fn($part) => !empty($part)));
+                    if($this->checkIfEntityExists($filepath)) {
+                        $this->resolver->update();
+                    } else {
+                        $this->resolver->create();
+                    }
+                });
+            } catch(CsvColumnMismatchException $csvMismatchException) {
+                return $this->resolver->conflict(__("entity-importer.csv-column-mismatch", [
+                    "data" => $csvMismatchException->dataLine,
+                    "data_count" => $csvMismatchException->dataColumns,
+                    "header_data" => $csvMismatchException->headerLine,
+                    "header_count" => $csvMismatchException->headerColumns,
+                ]));
+            }
         }
 
         fclose($handle);
@@ -203,7 +212,7 @@ class EntityImporter {
         return true;
     }
 
-    private function validateLocation($row, $rowIndex): bool {
+    private function validateLocation(array $row, int $rowIndex, string &$parentPath): bool {
 
         $parentTypeId = null;
         $parentPath = $this->getParentColumn($row);
@@ -231,13 +240,6 @@ class EntityImporter {
 
             $this->rowConflict($rowIndex, "entity-importer.entity-type-relation-not-allowed", ["child" => $childName, "parent" => $parentName]);
             return false;
-        }
-
-        $filepath = implode(self::PARENT_DELIMITER, array_filter([$parentPath, $row[$this->nameColumn]], fn ($part) => !empty($part)));
-        if($this->checkIfEntityExists($filepath)) {
-            $this->resolver->update();
-        } else {
-            $this->resolver->create();
         }
 
         return true;
