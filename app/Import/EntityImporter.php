@@ -41,6 +41,245 @@ class EntityImporter {
         $this->resolver = new ImportResolution();
     }
 
+    /**
+     * 
+     * @param resource $handle
+     * @throws ImportException
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function import(mixed $handle): array {
+
+        $changedEntities = [];
+
+        $headers = [];
+        $affectedRows = 0;
+        $parentIdx = null;
+        $nameIdx = null;
+
+        $csvTable = new Csv($this->csvOptions->hasHeaderRow, $this->csvOptions->delimiter, $this->csvOptions->encoding);
+
+        try {
+            $headers = $csvTable->parseHeaders($handle);
+        } catch(\Exception $e) {
+            return $this->resolver->conflict(__("entity-importer.empty"));
+        }
+
+        $batchSize = 200;
+        $entitiesToProcess = [];
+        $attributeValues = [];
+        $currentBatchSize = 0;
+        $parentCache = [];
+
+        $missingParents = [];
+        $parentMapping = [];
+        $userId = auth()->user()->id;
+
+        DB::beginTransaction();
+        try {
+            $csvTable->parse($handle, function ($row, $rowNumber) use ($userId, &$entitiesToProcess, &$attributeValues, &$currentBatchSize, $batchSize) {
+
+                // We use the row number only to track the current human readable row (1-n)
+
+
+
+
+                $entitiesToProcess[] = [
+                    name => $row[$this->nameColumn],
+                    root_entity_id => $row[$this->parentColumn] ?? null,
+                    user_id => $userId,
+                    entity_type_id => $this->entityTypeId,
+                ];
+
+
+                $this->attributeValues[] = array_map(function ($attributeId) use ($row) {
+                    $column = $this->attributesMap[$attributeId];
+                    return $row[$column] ?? null;
+                }, array_keys($this->attributesMap));
+
+
+
+                if($currentBatchSize++ >= $batchSize) {
+                    $this->processBatch($entitiesToProcess, $attributeValues, $parentCache, $missingParents, $parentMapping);
+                    $entitiesToProcess = [];
+                    $attributeValues = [];
+                    $currentBatchSize = 0;
+                }
+
+
+
+            });
+            DB::rollback();
+        } catch(\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+        fclose($handle);
+        return $changedEntities;
+    }
+
+    function processBatch(array $entitiesToProcess, array $attributes, array &$parentCache, array &$missingParents, array &$parentMapping) {
+        // Here we would process the batch of entities, check for missing parents, create entities and set attributes
+        // This is a placeholder for the actual batch processing logic
+
+        info(json_encode($entitiesToProcess));
+    }
+
+
+    // Getting headers
+    // if(($row = fgetcsv($handle, 0, $metadata['delimiter'])) !== false) {
+    //     $row = sp_trim_array($row);
+    //     try {
+    //         $headerRow = $row;
+    //         for($i = 0; $i < count($row); $i++) {
+    //             // Use the provided column name or the column number
+    //             $columnName = $hasHeaderRow ? $row[$i] : "#" . ($i + 1);
+
+    //             if($columnName == $nameColumn) {
+    //                 $nameIdx = $i;
+    //             } else if(isset($parentColumn) && $columnName == $parentColumn) {
+    //                 $parentIdx = $i;
+    //                 $hasParent = true;
+    //             }
+
+    //             foreach($attributesMapping as $id => $a) {
+    //                 if($a == $columnName) {
+    //                     $attributeIdToColumnIdxMapping[$id] = $i;
+    //                     $attributeTypes[$id] = Attribute::findOrFail($id)->datatype;
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //     } catch(ModelNotFoundException $e) {
+    //         DB::rollBack();
+    //         $ids = $e->getIds();
+    //         return response()->json([
+    //             'error' => __('entity-importer.attribute-id-does-not-exist', ['attributes' => join(', ', $ids)]),
+    //             'data' => new ImportExceptionStruct(),
+    //         ], 400);
+    //     }
+    // }
+
+    // // When we have no header row, we need to rewind the file handle
+    // if(!$hasHeaderRow) {
+    //     rewind($handle);
+    // }
+
+    // //Processing rows
+    // while(($row = fgetcsv($handle, 0, $metadata['delimiter'])) !== false) {
+    //     $row = sp_trim_array($row);
+    //     $affectedRows++;
+
+    //     if(!isset($nameIdx)) {
+    //         throw new ImportException(
+    //             "Name column '" . $nameColumn . "' could not be found in CSV file",
+    //             400,
+    //             new ImportExceptionStruct(on: $nameColumn)
+    //         );
+    //     }
+
+    //     $rootEntityPath = $hasParent ? $row[$parentIdx] : null;
+    //     $entityName = $row[$nameIdx];
+    //     $entityPath = $entityName;
+    //     $entityId = null;
+
+    //     $errorResponseData = new ImportExceptionStruct(
+    //         count: count($changedEntities) + 1,
+    //         entry: $entityName,
+    //     );
+
+    //     if($hasParent && !empty($rootEntityPath)) {
+
+    //         $entityPath = implode("\\\\", [$rootEntityPath, $entityName]);
+
+    //         $errorResponseData->on = $headerRow[$parentIdx];
+    //         $errorResponseData->on_index = $parentIdx + 1;
+    //         $errorResponseData->on_value = $row[$parentIdx];
+
+    //         try {
+    //             $parentEntity = Entity::getFromPath($rootEntityPath);
+    //             if(!isset($parentEntity)) {
+    //                 DB::rollBack();
+    //                 return response()->json([
+    //                     'error' => __('Parent entity does not exist'),
+    //                     'data' => $errorResponseData
+    //                 ], 400);
+    //             }
+    //         } catch(AmbiguousValueException $ave) {
+    //             DB::rollBack();
+    //             return response()->json([
+    //                 'error' => __($ave->getMessage()),
+    //                 'data' => $errorResponseData,
+    //             ], 400);
+    //         }
+    //     }
+
+    //     try {
+    //         $entityId = Entity::getFromPath($entityPath);
+    //     } catch(AmbiguousValueException $ave) {
+    //         DB::rollBack();
+    //         return response()->json([
+    //             'error' => __($ave->getMessage()),
+    //             'data' => $errorResponseData,
+    //         ], 400);
+    //     }
+    //     try {
+    //         $user = auth()->user();
+    //         if($entityId == null) {
+    //             $entity = $this->createImportedEntity($entityName, $rootEntityPath, $entityTypeId, $user);
+
+    //             // If create entity fails, return error
+    //             if($entity["type"] !== "entity") {
+    //                 DB::rollBack();
+    //                 return response()->json([
+    //                     'error' => $entity['msg'],
+    //                     'data' => [
+    //                         'count' => count($changedEntities) + 1,
+    //                         'entry' => $entityName,
+    //                         'on' => __('Create Entity from given data'),
+    //                     ],
+    //                 ], $entity['code']);
+    //             }
+
+    //             $entityId = $entity['entity']->id;
+    //         }
+
+    //         $this->setOrUpdateImportedAttributes($entityId, $row, $headerRow, $attributeIdToColumnIdxMapping, $attributeTypes, $user);
+    //         $changedEntities[] = $entityId;
+    //     } catch(AttributeImportException $e) {
+    //         DB::rollBack();
+    //         return response()->json($e->toImportExceptionObject(count($changedEntities) + 1, $entityName), 400);
+    //     } catch(ImportException $e) {
+    //         DB::rollBack();
+    //         return response()->json(
+    //             [
+    //                 'error' => $e->getMessage(),
+    //                 'data' => $e->getData()
+    //             ],
+    //             400
+    //         );
+    //     } catch(Exception $e) {
+    //         DB::rollBack();
+    //         return response()->json(
+    //             [
+    //                 'error' => $e->getMessage(),
+    //                 'data' => $errorResponseData
+    //             ],
+    //             400
+    //         );
+    //     }
+    // }
+
+    // if($affectedRows === 0) {
+    //     DB::rollBack();
+    //     return response()->json([
+    //         'error' => __('entity-importer.empty'),
+    //     ], 400);
+    // }
+
+    //     fclose($handle);
+    //     return $changedEntities;
+    // }
+
     private function validateStringData(string $varName, string $dataName) {
         if(gettype($this->{$varName}) == "string") {
             $this->{$varName} = trim($this->{$varName});
@@ -62,7 +301,9 @@ class EntityImporter {
         }, $this->attributesMap);
     }
 
-    public function validate($filepath) {
+    public function validate($handle) {
+        info(json_encode($this->csvOptions));
+
         $this->validateStringData('nameColumn', 'name_column');
         $this->validateStringData('entityTypeId', 'entity_type_id');
         if(isset($this->parentColumn)) {
@@ -74,14 +315,12 @@ class EntityImporter {
         if($this->resolver->hasErrors()) {
             return $this->resolver;
         }
+        info(json_encode($this->csvOptions));
 
-        $handle = fopen($filepath, 'r');
-
-        if(!$handle) {
-            return $this->resolver->conflict(__("entity-importer.file-not-found", ["file" => $filepath]));
-        }
-
+        info(json_encode($this->csvOptions->hasHeaderRow));
+        info(json_encode($this->csvOptions));
         $csvTable = new Csv($this->csvOptions->hasHeaderRow, $this->csvOptions->delimiter, $this->csvOptions->encoding);
+        info("AFTER");
 
         try {
             $headers = $csvTable->parseHeaders($handle);
@@ -100,14 +339,14 @@ class EntityImporter {
 
         try {
             $csvTable->parse($handle, function ($row, $rowNumber) use ($csvTable) {
-                
+
                 // We use the row number only to track the current human readable row (1-n)
                 // Therefore we must increase the row number by one, otherwise  the header
                 // row would be zero.
                 if(!$csvTable->hasHeaderRow) {
                     $rowNumber = $rowNumber + 1;
                 }
-            
+
                 $nameValid = $this->validateName($row, $rowNumber);
                 $attributeValid = $this->validateAttributesInRow($row, $rowNumber);
                 $parentPath = "";
@@ -235,7 +474,7 @@ class EntityImporter {
             $childName = ThConcept::getLabel($childTh);
 
             $parentName = "TOP";
-            if($parentTypeId){
+            if($parentTypeId) {
                 $parentTh = EntityType::find($parentTypeId)->thesaurus_url;
                 $parentName = ThConcept::getLabel($parentTh);
             }

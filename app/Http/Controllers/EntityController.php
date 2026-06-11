@@ -16,6 +16,7 @@ use App\Exceptions\ImportException;
 use App\Exceptions\InvalidDataException;
 use App\Exceptions\Structs\AttributeImportExceptionStruct;
 use App\Exceptions\Structs\ImportExceptionStruct;
+use App\File\CsvOptions;
 use App\Import\EntityImporter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -59,7 +60,7 @@ class EntityController extends Controller {
                 'error' => __('You do not have the permission to get a specific entity'),
             ], 403);
         }
-        try{
+        try {
             $entity = Entity::findOrFail($id);
         } catch(ModelNotFoundException $e) {
             return response()->json([
@@ -77,14 +78,14 @@ class EntityController extends Controller {
                 'error' => __('You do not have the permission to get an entity\'s data'),
             ], 403);
         }
-        try{
+        try {
             $entityType = EntityType::findOrFail($etid);
         } catch(ModelNotFoundException $e) {
             return response()->json([
                 'error' => __('This entity type does not exist'),
             ], 400);
         }
-        try{
+        try {
             Attribute::findOrFail($aid);
         } catch(ModelNotFoundException $e) {
             return response()->json([
@@ -144,7 +145,7 @@ class EntityController extends Controller {
                 $text = preg_replace_callback('/:entity_id/', function ($matches) use (&$i) {
                     return $matches[0] . '_' . $i++;
                 }, $sql->attribute->text);
-            }else{
+            } else {
                 $text = $sql->attribute->text;
             }
             foreach($entityIds as $eid) {
@@ -153,7 +154,7 @@ class EntityController extends Controller {
                     for($i = 0; $i < $cnt; $i++) {
                         $safes[':entity_id_' . $i] = $eid;
                     }
-                }else{
+                } else {
                     $safes = [
                         ':entity_id' => $eid,
                     ];
@@ -193,7 +194,7 @@ class EntityController extends Controller {
         }
 
         $entity = null;
-        try{
+        try {
             $entity = Entity::findOrFail($id);
         } catch(ModelNotFoundException $e) {
             return response()->json([
@@ -218,7 +219,7 @@ class EntityController extends Controller {
      * to achieve much better performance.
      */
     public function getEntityDetail(int $id) {
-         $user = auth()->user();
+        $user = auth()->user();
         if(!$user->can('entity_read') || !$user->can('entity_data_read')) {
             return response()->json([
                 'error' => __('You do not have the permission to get an entity\'s data'),
@@ -263,7 +264,7 @@ class EntityController extends Controller {
             ], 403);
         }
 
-        try{
+        try {
             $entity = Entity::findOrFail($id);
         } catch(ModelNotFoundException $e) {
             return response()->json([
@@ -347,7 +348,7 @@ class EntityController extends Controller {
 
         if($res['type'] === 'entity') {
             return response()->json($res['entity'], 201);
-        }else{
+        } else {
             return response()->json([
                 'error' => $res['msg'],
             ], $res['code']);
@@ -362,7 +363,7 @@ class EntityController extends Controller {
             ], 403);
         }
 
-        try{
+        try {
             $entity = Entity::without(['user', 'parentIds', 'parentNames'])->findOrFail($id);
             unset($entity->comments_count);
         } catch(ModelNotFoundException $e) {
@@ -378,7 +379,7 @@ class EntityController extends Controller {
         }
         if(isset($duplicate->root_entity_id)) {
             $duplicate->rank = Entity::where('root_entity_id', $duplicate->root_entity_id)->max('rank') + 1;
-        }else{
+        } else {
             $duplicate->rank = Entity::whereNull('root_entity_id')->max('rank') + 1;
         }
         $duplicate->user_id = $user->id;
@@ -419,43 +420,52 @@ class EntityController extends Controller {
     private function verifyImportData(Request $request) {
         $user = auth()->user();
         if(!$user->can('entity_create') || !$user->can('entity_write')) {
-            return response()->json([
-                'error' => __('You do not have the permission to import entity data'),
-            ], 403);
+            abort(403, __('You do not have the permission to import entity data'));
         }
+
         $this->validate($request, [
             'file' => 'required|file',
             'metadata' => 'required|json',
             'data' => 'required|json',
         ]);
+    }
 
+    private function createEntityImporter($request) {
+        $metadata = json_decode($request->get('metadata'), true);
+        $data = json_decode($request->get('data'), true);
+
+        $nameColumn = trim($data['name_column']);
+        $parentColumn = isset($data['parent_column']) ? trim($data['parent_column']) : null;
+        $entityTypeId = trim($data['entity_type_id']);
+        $attributesMapping = array_map(fn($col) => trim($col), $data['attributes']);
+        info(json_encode($metadata));
+        $csvOptions = CsvOptions::fromParams($metadata);
+        info("CSV Options: " . $csvOptions->toString());
+        return new EntityImporter($data, $nameColumn, $entityTypeId, $attributesMapping, $csvOptions, $parentColumn);
+    }
+
+    private function getFileHandle($request) {
         $file = $request->file('file');
 
         if(!$file || !$file->isValid()) {
-            return response()->json([
-                'error' => __('entity-importer.invalid-data', ['column' => 'file', 'value' => $file === null ? 'null' : 'invalid']),
-            ], 422);
+            abort(422, __('entity-importer.invalid-data', ['column' => 'file', 'value' => $file === null ? 'null' : 'invalid']));
         }
 
         $filepath = $file->getRealPath();
         File::removeBomIfNecessary($filepath);
+        $handle = fopen($filepath, 'r');
 
-        return null;
+        if(!$handle) {
+            abort(422, __('entity-importer.invalid-data', ['column' => 'file', 'value' => 'unreadable']));
+        }
+        return $handle;
     }
 
     public function validateImportData(Request $request) {
-        $errorResponse = $this->verifyImportData($request);
-        if($errorResponse) {
-            return $errorResponse;
-        }
-
-        $file = $request->file('file');
-        $filepath = $file->getRealPath();
-        $metadata = json_decode($request->get('metadata'), true);
-        $data = json_decode($request->get('data'), true);
-
-        $entityImport = new EntityImporter($metadata, $data);
-        $resolver = $entityImport->validate($filepath);
+        $this->verifyImportData($request);
+        $entityImporter = $this->createEntityImporter($request);
+        $fileHandle = $this->getFileHandle($request);
+        $resolver = $entityImporter->validate($fileHandle);
 
         return response()->json([
             'errors' => $resolver->getErrors(),
@@ -467,191 +477,13 @@ class EntityController extends Controller {
      * TODO: Move this functionality into the EntityImporter class.
      */
     public function importData(Request $request) {
-        $errorResponse = $this->verifyImportData($request);
-        if($errorResponse) {
-            return $errorResponse;
-        }
+        $this->verifyImportData($request);
+        $entityImporter = $this->createEntityImporter($request);
+        $fileHandle = $this->getFileHandle($request);
+        $entityImporter->import($fileHandle);
 
-        $file = $request->file('file');
-        $filepath = $file->getRealPath();
-        $metadata = json_decode($request->get('metadata'), true);
-        $data = json_decode($request->get('data'), true);
-        $handle = fopen($filepath, 'r');
-
-        $hasHeaderRow = $metadata["has_header_row"];
-
-        // Data values
-        $nameColumn = trim($data['name_column']);
-        $parentColumn = isset($data['parent_column']) ? trim($data['parent_column']) : null;
-        $entityTypeId = trim($data['entity_type_id']);
-        $attributesMapping = array_map(fn ($col) => trim($col), $data['attributes']);
-
-        $headerRow = null;
-        $hasParent = false;
-        $attributeIdToColumnIdxMapping = [];
-        $attributeTypes = [];
-        $changedEntities = [];
-
-        DB::beginTransaction();
-
-        $affectedRows = 0;
-        $parentIdx = null;
-        $nameIdx = null;
-
-        // Getting headers
-        if(($row = fgetcsv($handle, 0, $metadata['delimiter'])) !== false) {
-            $row = sp_trim_array($row);
-            try{
-                $headerRow = $row;
-                for($i = 0; $i < count($row); $i++) {
-                    // Use the provided column name or the column number
-                    $columnName = $hasHeaderRow ? $row[$i] : "#".($i + 1);
-
-                    if($columnName == $nameColumn) {
-                        $nameIdx = $i;
-                    } else if(isset($parentColumn) && $columnName == $parentColumn) {
-                        $parentIdx = $i;
-                        $hasParent = true;
-                    }
-
-                    foreach($attributesMapping as $id => $a) {
-                        if($a == $columnName) {
-                            $attributeIdToColumnIdxMapping[$id] = $i;
-                            $attributeTypes[$id] = Attribute::findOrFail($id)->datatype;
-                            break;
-                        }
-                    }
-                }
-            } catch(ModelNotFoundException $e) {
-                DB::rollBack();
-                $ids = $e->getIds();
-                return response()->json([
-                    'error' => __('entity-importer.attribute-id-does-not-exist', ['attributes' => join(', ', $ids)]),
-                    'data' => new ImportExceptionStruct(),
-                ], 400);
-            }
-        }
-
-        // When we have no header row, we need to rewind the file handle
-        if(!$hasHeaderRow){
-            rewind($handle);
-        }
-
-        //Processing rows
-        while(($row = fgetcsv($handle, 0, $metadata['delimiter'])) !== false) {
-            $row = sp_trim_array($row);
-            $affectedRows++;
-
-            if(!isset($nameIdx)) {
-                throw new ImportException(
-                    "Name column '" . $nameColumn . "' could not be found in CSV file",
-                    400,
-                    new ImportExceptionStruct(on: $nameColumn)
-                );
-            }
-
-            $rootEntityPath = $hasParent ? $row[$parentIdx] : null;
-            $entityName = $row[$nameIdx];
-            $entityPath = $entityName;
-            $entityId = null;
-
-            $errorResponseData = new ImportExceptionStruct(
-                count: count($changedEntities) + 1,
-                entry: $entityName,
-            );
-
-            if($hasParent && !empty($rootEntityPath)) {
-
-                $entityPath = implode("\\\\", [$rootEntityPath, $entityName]);
-
-                $errorResponseData->on = $headerRow[$parentIdx];
-                $errorResponseData->on_index = $parentIdx + 1;
-                $errorResponseData->on_value = $row[$parentIdx];
-
-                try{
-                    $parentEntity = Entity::getFromPath($rootEntityPath);
-                    if(!isset($parentEntity)) {
-                        DB::rollBack();
-                        return response()->json([
-                            'error' => __('Parent entity does not exist'),
-                            'data' => $errorResponseData
-                        ], 400);
-                    }
-                } catch(AmbiguousValueException $ave) {
-                    DB::rollBack();
-                    return response()->json([
-                        'error' => __($ave->getMessage()),
-                        'data' => $errorResponseData,
-                    ], 400);
-                }
-            }
-
-            try{
-                $entityId = Entity::getFromPath($entityPath);
-            } catch(AmbiguousValueException $ave) {
-                DB::rollBack();
-                return response()->json([
-                    'error' => __($ave->getMessage()),
-                    'data' => $errorResponseData,
-                ], 400);
-            }
-            try{
-                $user = auth()->user();
-                if($entityId == null) {
-                    $entity = $this->createImportedEntity($entityName, $rootEntityPath, $entityTypeId, $user);
-
-                    // If create entity fails, return error
-                    if($entity["type"] !== "entity") {
-                        DB::rollBack();
-                        return response()->json([
-                            'error' => $entity['msg'],
-                            'data' => [
-                                'count' => count($changedEntities) + 1,
-                                'entry' => $entityName,
-                                'on' => __('Create Entity from given data'),
-                            ],
-                        ], $entity['code']);
-                    }
-
-                    $entityId = $entity['entity']->id;
-                }
-
-                $this->setOrUpdateImportedAttributes($entityId, $row, $headerRow, $attributeIdToColumnIdxMapping, $attributeTypes, $user);
-                $changedEntities[] = $entityId;
-            } catch(AttributeImportException $e) {
-                DB::rollBack();
-                return response()->json($e->toImportExceptionObject(count($changedEntities) + 1, $entityName), 400);
-            } catch(ImportException $e) {
-                DB::rollBack();
-                return response()->json(
-                    [
-                        'error' => $e->getMessage(),
-                        'data' => $e->getData()
-                    ],
-                    400
-                );
-            } catch(Exception $e) {
-                DB::rollBack();
-                return response()->json(
-                    [
-                        'error' => $e->getMessage(),
-                        'data' => $errorResponseData
-                    ],
-                    400
-                );
-            }
-        }
-
-        if($affectedRows === 0) {
-            DB::rollBack();
-            return response()->json([
-                'error' => __('entity-importer.empty'),
-            ], 400);
-        }
-
-        fclose($handle);
-        DB::commit();
-        return response()->json($changedEntities, 201);
+        // TODO: Return more detailed information about the import process, e.g. created entities, errors, etc.
+        return response()->json([], 201);
     }
 
     function exportEntityTree($id, Request $request) {
@@ -752,12 +584,12 @@ class EntityController extends Controller {
                 $headersMap[$entityTypeId] = $mergedHeaderKeyMap;
                 $mergedHeaderNames = array_merge($attributeNames, $metadataFields);
 
-                $headerStrings = array_map(function($header) {
+                $headerStrings = array_map(function ($header) {
                     $header = str_replace('"', '\"', $header);
                     $header = str_replace('\n', '', $header);
                     return '"' . $header . '"';
                 }, $mergedHeaderNames);
-                Storage::disk('private')->put($filename, implode($delimiter,  $headerStrings));
+                Storage::disk('private')->put($filename, implode($delimiter, $headerStrings));
             }
 
             $filename = $files[$entityTypeId];
@@ -766,7 +598,7 @@ class EntityController extends Controller {
             foreach($columnHeaders as $columnHeader) {
                 $columns[] = isset($entity[$columnHeader]) ? $entity[$columnHeader] : "";
             }
-            Storage::disk('private')->append($filename, implode($delimiter, array_map(function($item) {
+            Storage::disk('private')->append($filename, implode($delimiter, array_map(function ($item) {
                 return '"' . $item . '"';
             }, $columns)));
             $files[$entityTypeId] = $filename;
@@ -800,7 +632,7 @@ class EntityController extends Controller {
             ], [
                 'user_id' => $user->id,
             ]);
-            try{
+            try {
                 $setValue = $attrVal->setValueFromRaw($row[$colIdx], $type);
             } catch(InvalidDataException $e) {
                 throw new AttributeImportException(
@@ -862,7 +694,7 @@ class EntityController extends Controller {
                 DB::rollBack();
                 return response()->json([
                     'error' => $error['message'],
-            ], $error['code']);
+                ], $error['code']);
             }
         }
 
@@ -969,7 +801,7 @@ class EntityController extends Controller {
                     'error' => __('This attribute does not exist'),
                 ], 400);
             }
-            try{
+            try {
                 $formKeyValue = AttributeValue::getFormattedKeyValue($attr->datatype, $av['value']);
             } catch(InvalidDataException $ide) {
                 DB::rollBack();
@@ -1007,14 +839,14 @@ class EntityController extends Controller {
 
         $action = $request->get('action');
 
-        try{
+        try {
             Entity::findOrFail($id);
         } catch(ModelNotFoundException $e) {
             return response()->json([
                 'error' => __('This entity does not exist'),
             ], 400);
         }
-        try{
+        try {
             $attribute = Attribute::findOrFail($aid);
         } catch(ModelNotFoundException $e) {
             return response()->json([
@@ -1063,7 +895,7 @@ class EntityController extends Controller {
             'name' => 'required|string',
         ]);
 
-        try{
+        try {
             $entity = Entity::findOrFail($id);
         } catch(ModelNotFoundException $e) {
             return response()->json([
@@ -1119,7 +951,7 @@ class EntityController extends Controller {
             ], 403);
         }
 
-       $request->validate([
+        $request->validate([
             'rank' => 'required_without:to_end|integer',
             'parent_id' => 'nullable|integer|exists:entities,id',
             'to_end' => 'nullable|boolean',
@@ -1130,7 +962,7 @@ class EntityController extends Controller {
             $entity = Entity::findOrFail($id);
         } catch(ModelNotFoundException $e) {
             return response()->json([
-            'error' => __('This entity does not exist'),
+                'error' => __('This entity does not exist'),
             ], 400);
         }
 
@@ -1217,7 +1049,7 @@ class EntityController extends Controller {
                 'error' => __('You do not have the permission to delete an entity'),
             ], 403);
         }
-        try{
+        try {
             $entity = Entity::findOrFail($id);
         } catch(ModelNotFoundException $e) {
             return response()->json([
