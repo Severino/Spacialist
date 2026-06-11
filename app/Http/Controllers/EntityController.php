@@ -455,7 +455,7 @@ class EntityController extends Controller {
         $data = json_decode($request->get('data'), true);
 
         $entityImport = new EntityImporter($metadata, $data);
-        $resolver = $entityImport->validateImportData($filepath);
+        $resolver = $entityImport->validate($filepath);
 
         return response()->json([
             'errors' => $resolver->getErrors(),

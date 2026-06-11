@@ -4,6 +4,7 @@ namespace App\Import;
 
 use App\Exceptions\CsvColumnMismatchException;
 use App\File\Csv;
+use App\File\CsvOptions;
 use App\Entity;
 use App\EntityType;
 use App\EntityTypeRelation;
@@ -25,30 +26,19 @@ class EntityImporter {
     const PARENT_DELIMITER = "\\\\";
 
     private $metadata;
-    private array $attributesMap;
     private array $attributeIdToAttributeValue = [];
-    private int $entityTypeId;
-    private string $nameColumn;
-    private ?string $parentColumn = null;
     private ImportResolution $resolver;
 
 
-    public function __construct($metadata, $data) {
+    public function __construct(
+        private array $data,
+        private string $nameColumn,
+        private int $entityTypeId,
+        private array $attributesMap,
+        private CsvOptions $csvOptions,
+        private ?string $parentColumn = null,
+    ) {
         $this->resolver = new ImportResolution();
-        $this->metadata = $metadata;
-
-        $this->nameColumn = $data['name_column'] ?? '';
-        $this->entityTypeId = $data['entity_type_id'];
-        $this->attributesMap = $data['attributes'];
-
-        // The parent column is optional, therefore we only set it
-        // to another value than null, if there is valid data set.
-        if(array_key_exists('parent_column', $data)) {
-            $parentColumn = trim($data['parent_column']);
-            if(!empty($parentColumn)) {
-                $this->parentColumn = trim($data['parent_column']);
-            }
-        }
     }
 
     private function validateStringData(string $varName, string $dataName) {
@@ -72,9 +62,13 @@ class EntityImporter {
         }, $this->attributesMap);
     }
 
-    public function validateImportData($filepath) {
+    public function validate($filepath) {
         $this->validateStringData('nameColumn', 'name_column');
         $this->validateStringData('entityTypeId', 'entity_type_id');
+        if(isset($this->parentColumn)) {
+            $this->validateStringData('parentColumn', 'parent_column');
+        }
+
         $this->validateAttributeData();
 
         if($this->resolver->hasErrors()) {
@@ -87,7 +81,7 @@ class EntityImporter {
             return $this->resolver->conflict(__("entity-importer.file-not-found", ["file" => $filepath]));
         }
 
-        $csvTable = new Csv($this->metadata['has_header_row'], $this->metadata['delimiter'], $this->metadata['encoding']);
+        $csvTable = new Csv($this->csvOptions->hasHeaderRow, $this->csvOptions->delimiter, $this->csvOptions->encoding);
 
         try {
             $headers = $csvTable->parseHeaders($handle);
@@ -103,7 +97,6 @@ class EntityImporter {
         if($this->resolver->hasErrors()) {
             return $this->resolver;
         }
-
 
         try {
             $csvTable->parse($handle, function ($row, $rowNumber) use ($csvTable) {
