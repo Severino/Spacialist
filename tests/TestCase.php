@@ -9,14 +9,13 @@ use Laravel\Sanctum\Sanctum;
 
 use App\User;
 use Database\Seeders\TestingSeeder;
-use DMS\PHPUnitExtensions\ArraySubset\ArraySubsetAsserts;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Testing\TestResponse;
 
 abstract class TestCase extends BaseTestCase {
     use CreatesApplication;
     use WithFaker;
     use RefreshDatabase;
-    use ArraySubsetAsserts;
 
     /**
     * Indicates whether the default seeder should run before each test.
@@ -29,10 +28,6 @@ abstract class TestCase extends BaseTestCase {
      * Specify the seeder that should be run.
      */
     protected $seeder = TestingSeeder::class;
-
-    protected $connectionsToTransact = [
-        'testing'
-    ];
 
     public $user = null;
     public $token = null;
@@ -66,7 +61,7 @@ abstract class TestCase extends BaseTestCase {
                 }
 
             }
-        }catch(\Exception $e) {
+        } catch(\Exception $e) {
             // No error message found in response
         }
 
@@ -92,5 +87,24 @@ abstract class TestCase extends BaseTestCase {
         return $this->withHeaders([
             'Accept' => 'application/json' // When not setting this, Laravels validation will return a 302 on failure!
         ]);
+    }
+    
+    /**
+     * The booted method of laravel models is called before the testCase is run.
+     * Therefore when you need to modify any model and have those changes being
+     * available in the booted function of that model. You need to "reboot" the model.
+     */
+    public static function rebootModel($modelClass) {
+        // Clear global scopes before rebooting
+        $reflection = new \ReflectionClass($modelClass);
+        
+        // Clear global scopes
+        $scopesProperty = $reflection->getProperty('globalScopes');
+        $scopesProperty->setAccessible(true);
+        $scopesProperty->setValue(null, []);
+        
+        // Flush event listeners and reboot
+        $modelClass::flushEventListeners();
+        $modelClass::boot();
     }
 }

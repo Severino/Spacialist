@@ -236,6 +236,17 @@
         :title="getSeparatorTitle(data)"
     />
 
+    <component
+        v-else-if="pluginStore.hasAttribute(data.datatype)"
+        :is="pluginStore.getAttribute(data.datatype).component"
+        :key="pluginStore.getAttribute(data.datatype).key"
+        :ref="el => setRef(el)"
+        :disabled="state.disabled"
+        :name="`attr-${data.id}`"
+        :value="state.value"
+        @change="updateDirtyState"
+    />
+
     <default-attribute
         v-else
         :ref="el => setRef(el)"
@@ -257,6 +268,7 @@
     } from 'vue';
 
     import useAttributeStore from '@/bootstrap/stores/attribute.js';
+    import usePluginStore from '@/bootstrap/stores/plugin';
 
     import {
         getEmptyAttributeValue,
@@ -358,6 +370,7 @@
         emits: ['expanded', 'change', 'update-selection'],
         setup(props, context) {
             const attributeStore = useAttributeStore();
+            const pluginStore = usePluginStore();
             const {
                 data,
                 valueWrapper,
@@ -452,6 +465,7 @@
             return {
                 // HELPERS
                 // LOCAL
+                pluginStore,
                 setRef,
                 updateDirtyState,
                 onSelectionUpdate,

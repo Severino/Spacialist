@@ -3,6 +3,7 @@ import {
 } from 'pinia';
 
 import useEntityStore from './entity.js';
+import usePluginStore from './plugin.js';
 import useSystemStore from './system.js';
 
 import {
@@ -21,27 +22,28 @@ export const useAttributeStore = defineStore('attribute', {
         attributeSelections: {},
     }),
     getters: {
-        getAttribute: state => id => {
+        getTableAttributeTypes: state => state.attributeTypes.filter(type => type.in_table),
+    },
+    actions: {
+        getAttribute(id) {
             if(!id) return {};
-            return state.attributes.find(a => a.id == id) || {};
+            return this.attributes.find(a => a.id == id) || {};
         },
-        getAttributeName(state) {
-            return id => {
-                const attribute = this.getAttribute(id);
-                if(!attribute || !attribute.thesaurus_url) return '';
+        getAttributeName(id) {
+            const attribute = this.getAttribute(id);
+            if(!attribute || !attribute.thesaurus_url) return '';
 
-                return useSystemStore().translateConcept(attribute.thesaurus_url);
-            };
+            return useSystemStore().translateConcept(attribute.thesaurus_url);
         },
-        getAttributeListBy: state => type => {
+        getAttributeListBy(type) {
             const filter = type == 'system';
-            return state.attributes.filter(attribute => attribute.is_system == filter);
+            return this.attributes.filter(attribute => attribute.is_system == filter);
         },
-        getAttributeSelection: state => aid => {
-            return state.attributeSelections[aid];
+        getAttributeSelection(aid) {
+            return this.attributeSelections[aid];
         },
-        getAttributeSelections: state => attributes => {
-            const selections = state.attributeSelections;
+        getAttributeSelections(attributes) {
+            const selections = this.attributeSelections;
             const filteredSelection = {};
             for(let k in selections) {
                 if(attributes.findIndex(a => a.id == k) > -1) {
@@ -50,9 +52,17 @@ export const useAttributeStore = defineStore('attribute', {
             }
             return filteredSelection;
         },
-        getTableAttributeTypes: state => state.attributeTypes.filter(type => type.in_table),
-    },
-    actions: {
+        isFromPlugin(datatype) {
+            console.log(datatype)
+            return !!usePluginStore().registeredPluginAttributes?.[datatype];
+        },
+        getPluginAttributeLabel(datatype) {
+            const attributeType = this.attributeTypes.find(attributeType => {
+                return attributeType.datatype == datatype && !!attributeType.plugin;
+            });
+
+            return attributeType?.label;
+        },
         setAttributes(attributes) {
             this.attributes = attributes;
         },

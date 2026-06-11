@@ -26,11 +26,15 @@ class Csv extends Parser {
      * Parses a CSV file.
      *
      * @param resource $fileHandle - The file handle to the CSV file
-     * @param callable $$rowCallback -
+     * @param callable $rowCallback - Called for each data row: ($row, $rowIndex, $headers)
+     * @param callable|null $progressCallback - Optional. Called for each row with byte-based progress:
+     *                                          ($bytesRead, $totalBytes). No pre-pass needed.
      */
-    public function parse($fileHandle, callable $rowCallback): void {
+    public function parse($fileHandle, callable $rowCallback, ?callable $progressCallback = null): void {
         $rowIndex = 0;
         $this->rows = 0;
+        $totalBytes = $progressCallback !== null ? fstat($fileHandle)['size'] : 0;
+
         // We don't use the fgetcsv function to change the file encoding to UTF-8.
         while(($row = fgets($fileHandle)) !== false) {
             $this->rows++;
@@ -42,6 +46,11 @@ class Csv extends Parser {
             $row = $this->toUtf8($row);
             $row = $this->parseRow($row);
             $rowCallback($row, $rowIndex, $this->headers);
+
+            if($progressCallback !== null) {
+                $progressCallback(ftell($fileHandle), $totalBytes, $rowIndex);
+            }
+
             $rowIndex++;
         }
     }
@@ -135,10 +144,6 @@ class Csv extends Parser {
 
     private function isUtf8(): bool {
         return $this->encoding == 'UTF-8';
-    }
-
-    public function getRows(): int {
-        return $this->rows;
     }
 
     public function getDataRows(): int {
