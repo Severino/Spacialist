@@ -22,6 +22,8 @@ All notable changes to this project will be documented in this file.
 - Fixed add/remove of plugin correctly setup in store and SpPS
 - Fixed error when generating cite key where bibliography title contained a space separated part of non-alphanumerical characters
 - Reply to comment from notification
+- Fixed ErrorList formatting 
+- Fixed SiUnit Import setting symbol instead of label
 
 ## 0.11 - Kilcrea
 ### Added

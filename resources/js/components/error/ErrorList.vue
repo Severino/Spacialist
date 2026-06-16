@@ -42,27 +42,20 @@
 
             const items = computed(_ => {
                 // Replace text inside double curly braces with placeholders
-                const preservationRegex = RegExp('{{(.*?)}}', 'g');
+                const rowRegex = RegExp('{{(.*?)}} => {{(.*?)}},*\s*', 'g');
                 const variables = {};
                 let counter = 1;
-                const preservationMatches = props.value.replace(preservationRegex, (match, p1 = '') => {
-                    const key = `$${counter++}`;
-                    variables[key] = p1;
-                    return key;
+                const itemMatches = props.value.matchAll(rowRegex)
+                
+                const list = [];
+                
+                itemMatches.forEach(([match, attribute, value]) => {
+                    console.log('Match:', match);
+                    list.push(`${attribute} → ${value}`);
+                    counter++;
                 });
-
-                const [header, ...body] = preservationMatches.split(props.headerSeparator);
-
-                const joinedBody = body.join(props.headerSeparator).trim();
-                let lines = joinedBody.split(props.separator);
-                lines = lines.map((line, idx) => {
-                    let result = line;
-                    for(const [key, value] of Object.entries(variables)) {
-                        result = result.replace(key, value);
-                    }
-                    return result;
-                });
-                return lines;
+                
+                return list;
             });
 
             const hasItems = computed(_ => {

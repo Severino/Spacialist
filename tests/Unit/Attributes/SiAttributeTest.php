@@ -434,7 +434,7 @@ class SiAttributeTest extends TestCase {
         $importValue = "10.5;km";
         $expected = json_encode([
             'value' => 10.5,
-            'unit' => 'km',
+            'unit' => 'kilometre',
             'normalized' => 10500,
         ]);
         $this->assertEquals($expected, SiUnitAttribute::fromImport($importValue));

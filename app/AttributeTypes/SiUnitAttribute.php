@@ -47,7 +47,7 @@ class SiUnitAttribute extends AttributeBase {
 
         return json_encode([
             'value' => $value,
-            'unit' => $unitFound->getSymbol(),
+            'unit' => $unitFound->getLabel(),
             'normalized' => $unitFound->normalize($value),
         ]);
     }
