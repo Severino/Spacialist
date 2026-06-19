@@ -90,3 +90,15 @@ export const getPluginTitle = (plugin) => {
     pluginName = pluginName.replace(/([a-z])([A-Z])/g, '$1 $2');
     return pluginName;
 }
+
+export const requireRegisteredPlugin = (options) => {
+    if(!options.of || !SpPS.data.plugins[options.of]) {
+        throw new Error('This plugin part has no associated plugin or that plugin is not installed!');
+    }
+}
+
+export const requirePluginToBeInstalled = (options) => {
+    if(!options.id) {
+        throw new Error('Your plugin needs an id to be installed!');
+    }
+}

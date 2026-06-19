@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Plugin-System now supports PluginScopes
 - Plugin-System now supports Hooks: Custom functions that are executed after API calls.
 - Plugin-System now supports CSS files
+- Plugin-System added 'Dynalots': Dynamic slots that can be rendered n-times depending on the provided data
 - Plugin script can be (re-)published via interface 
 - .env variable `ALLOW_FILESYSTEM_MIGRATIONS` to explcitly enable filesystem migrations
 - API endpoint for getting all entity details data in one request: GET::v1/entity/{id}/entity_detail

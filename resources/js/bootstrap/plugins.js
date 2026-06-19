@@ -23,8 +23,14 @@ import * as filters from '@/helpers/filters.js';
 import * as helpers from '@/helpers/helpers.js';
 import * as colors from '@/helpers/colors.js';
 import {
+    requireRegisteredPlugin,
+    requirePluginToBeInstalled,
+} from '@/helpers/plugins.js';
+
+import {
     showUserInfo,
 } from '@/helpers/modal.js';
+
 import {
     getLayers,
     switchLayerPositions,
@@ -32,21 +38,26 @@ import {
     getGeoJsonFormat,
     getWktFormat,
 } from '@/helpers/map.js';
+
 import {
     Node
 } from '@/helpers/tree.js';
+
 import {
     searchEntity,
 } from '@/api.js';
+
 import {
     iconList,
 } from '@/bootstrap/font.js';
+
 import {
     useModal,
 } from 'vue-final-modal';
 
 import RouteRootDummy from '@/components/plugins/RouteRootDummy.vue';
 import * as buffer from 'buffer';
+import { validateDynalot } from '../helpers/plugin/plugin-dynalot.js';
 
 const defaultPluginOptions = {
     id: null,
@@ -197,9 +208,8 @@ export const SpPS = {
         router.addRoute('app', pluginRoute);
     },
     register: (options) => {
-        if(!options.id) {
-            throw new Error('Your plugin needs an id to be installed!');
-        }
+        requirePluginToBeInstalled(options);
+        
         if(!!SpPS.data.plugins[options.id]) {
             throw new Error('A plugin with that ID is already installed!');
         }
@@ -219,9 +229,8 @@ export const SpPS = {
         SpPS.data.plugins[options.id] = mergedOptions;
     },
     registerAccessPoint: (options) => {
-        if(!options.id) {
-            throw new Error('Your plugin needs an id to be installed!');
-        }
+        requirePluginToBeInstalled(options);
+
         if(!SpPS.data.plugins[options.id]) {
             throw new Error('No plugin with that ID is installed! Register it first, before registering an access point.');
         }
@@ -247,9 +256,7 @@ export const SpPS = {
         router.addRoute(pluginRoute);
     },
     intoSlot: (options) => {
-        if(!options.of || !SpPS.data.plugins[options.of]) {
-            throw new Error('This plugin part has no associated plugin or that plugin is not installed!');
-        }
+        requireRegisteredPlugin(options)
         if(!options.slot) {
             throw new Error('No slot for plugin provided!');
         }
@@ -276,19 +283,21 @@ export const SpPS = {
         SpPS.api.store.pluginStore.registerInSlot(mergedOptions);
     },
     registerSlot: (options) => {
-        if(!options.of || !SpPS.data.plugins[options.of]) {
-            throw new Error('This plugin part has no associated plugin or that plugin is not installed!');
-        }
+        requireRegisteredPlugin(options)
+        
         if(!options.name) {
             throw new Error('No slot for plugin provided!');
         }
         
         usePluginStore().registerSlot(options.of, options.name);
     },
+    registerDynalot: (options) => {
+        requireRegisteredPlugin(options)
+        validateDynalot(options);
+        usePluginStore().registerDynalot(options);
+    },
     registerComponent: (options) => {
-        if(!options.of || !SpPS.data.plugins[options.of]) {
-            throw new Error('This plugin part has no associated plugin or that plugin is not installed!');
-        }
+        requireRegisteredPlugin(options)
         if(!options.component) {
             throw new Error('To register a component you must provide a component!');
         }
