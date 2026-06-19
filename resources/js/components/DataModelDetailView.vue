@@ -73,6 +73,15 @@
                         </router-link> -->
                     </div>
                 </div>
+                
+                <div v-for="prop in state.propertyPluginSlots" :key="prop.id">
+                    <component
+                        :is="prop.component"
+                        :entity-type="state.entityType"
+                        v-bind="prop.props"
+                    />
+                </div>
+                
                 <div class="mb-2 row">
                     <label
                         for="dme-allowed-sub-entity-types-select"
@@ -428,6 +437,7 @@
                         )
                         ;
                 }),
+                tabPlugins: computed(_ => pluginStore.getSlotItems('tab')),
             });
 
             function updateProperties(entityType) {

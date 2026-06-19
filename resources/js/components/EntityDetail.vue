@@ -251,6 +251,34 @@
                     </div>
                 </a>
             </li>
+
+            <!-- Plugins can mount Dynalots into the entity details view. -->
+            <template
+                v-for="tab in pluginTabs"
+                :key="`dynalot-group-${tab}`"
+            >
+                <li
+                    class="nav-item"
+                    role="presentation"
+                >
+                    <a
+                        :id="`active-entity-dynalot-group-${tab.id}-tab`"
+                        class="active-entity-detail-tab nav-link d-flex gap-2 align-items-center"
+                        href="#"
+                        draggable="false"
+                        @click.prevent="setDetailPanel(`dynalot-${tab.id}`)"
+                    >
+                        <component
+                            :is="tab.component"
+                            :id="tab.id"
+                            :name="tab.name"
+                            :type="tab.type"
+                        />
+                    </a>
+                </li>
+            </template>
+
+
             <!-- empty nav-item to separate metadata and comments from attributes -->
             <li class="nav-item nav-item-list-divider ms-auto" />
             <li
@@ -390,6 +418,24 @@
                     />
                 </div>
             </div>
+
+            <template
+                v-for="panel in pluginPanels"
+                :key="`plugin-panel-${panel.view}`"
+            >
+                <div
+                    :id="`active-entity-dynalot-group-${panel.id}-panel`"
+                    class="tab-pane fade h-100 active-entity-detail-panel"
+                    role="tabpanel"
+                >
+                    <component
+                        :is="panel.component"
+                        :id="panel.id"
+                        :name="panel.name"
+                        :type="panel.type"
+                    />
+                </div>
+            </template>
         </div>
         <router-view
             v-if="state.attributesFetched"
@@ -423,6 +469,7 @@
 
     import useAttributeStore from '@/bootstrap/stores/attribute.js';
     import useEntityStore from '@/bootstrap/stores/entity.js';
+    import usePluginStore from '@/bootstrap/stores/plugin.js';
     import useUserStore from '@/bootstrap/stores/user.js';
     import router from '%router';
 
@@ -505,12 +552,18 @@
 
             // FETCH
 
+            function updateActiveEntity(obj) {
+                entityStore.getEntityTypeAttributeSelections(state.entity.entity_type_id);
+                state.initFinished = true;
+                updateAllDependencies();
+                usePluginStore().updateDynalots('entity-detail-tabs', { entity: state.entity, response: obj.response });
+            }
+
             onMounted(() => {
-                entityStore.setById(route.params.id).then(_ => {
-                    entityStore.getEntityTypeAttributeSelections(state.entity.entity_type_id);
-                    state.initFinished = true;
-                    updateAllDependencies();
-                }).catch(console.error);
+                entityStore
+                    .setById(route.params.id)
+                    .then(obj => updateActiveEntity(obj))
+                    .catch(console.error);
             });
 
             // DATA
@@ -814,6 +867,9 @@
                 } else if(tab === 'metadata') {
                     newTab = document.getElementById('active-entity-metadata-tab');
                     newPanel = document.getElementById('active-entity-metadata-panel');
+                } else if(tab.startsWith("dynalot-")) {
+                    newTab = document.getElementById(`active-entity-dynalot-group-${tabId}-tab`);
+                    newPanel = document.getElementById(`active-entity-dynalot-group-${tabId}-panel`);
                 } else {
                     newTab = document.getElementById(`active-entity-attributes-group-${tabId}-tab`);
                     newPanel = document.getElementById(`active-entity-attributes-panel-${tabId}`);
@@ -1069,16 +1125,10 @@
                     if(newParams.id == oldParams.id) return;
                     if(!newParams.id) return;
                     state.initFinished = false;
-                    entityStore.setById(newParams.id).then(_ => {
-                        entityStore.getEntityTypeAttributeSelections(state.entity.entity_type_id);
-                        state.initFinished = true;
-                        updateAllDependencies();
-                    });
-                    // store.dispatch('getEntity', newParams.id).then(_ => {
-                    //     entityStore.getEntityTypeAttributeSelections();
-                    //     state.initFinished = true;
-                    //     updateAllDependencies();
-                    // });
+                    entityStore
+                        .setById(newParams.id)
+                        .then(obj => updateActiveEntity(obj))
+                        .catch(console.error);
                 }
             );
 
@@ -1151,6 +1201,33 @@
                 }
             });
 
+            const dynalots = usePluginStore().getDynalotItems('entity-detail-tabs');
+
+            const buildDynalot = (componentName) => {
+                let items = [];
+                for(let dynalot of dynalots) {
+                    const component = dynalot.getComponent(componentName)
+                    const data = dynalot.getData();
+                    data.forEach(item => {
+                        items.push({
+                            name: item.name,
+                            id: item.id,
+                            type: item.type,
+                            component: component,
+                        });
+                    });
+                }
+                return items;
+            };
+
+            const pluginTabs = computed(() => {
+                return buildDynalot('tab');
+            });
+
+            const pluginPanels = computed(() => {
+                return buildDynalot('panel');
+            });
+
             // RETURN
             return {
                 t,
@@ -1162,6 +1239,8 @@
                 userId,
                 showUserInfo,
                 translateConcept,
+                pluginTabs,
+                pluginPanels,
                 // LOCAL
                 hasReferenceGroup,
                 showMetadata,

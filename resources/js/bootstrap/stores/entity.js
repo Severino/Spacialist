@@ -687,6 +687,7 @@ export const useEntityStore = defineStore('entity', {
         },
         async setById(entityId) {
             let entity;
+            let response = null;
             if(!can('entity_data_read')) {
                 entity = {
                     ...entity,
@@ -701,6 +702,7 @@ export const useEntityStore = defineStore('entity', {
             } else {
                 entity = this.entities[entityId];
                 const entityDetail = await getEntityDetailsData(entityId);
+                response = entityDetail;
 
                 // If the entity was not yet loaded into the cache, it means it's
                 // an unloaded child entity. Therefore we need to open the path
@@ -732,6 +734,9 @@ export const useEntityStore = defineStore('entity', {
                 }
             }
             this.set(entity);
+            return {
+                response
+            };
         },
         async addEntityType(entityType) {
             return addEntityType(entityType).then(data => {
