@@ -72,12 +72,12 @@ export const usePluginStore = defineStore('plugin', {
             }
         },
         addStore(id, store) {
-            if(this.pluginStores[id]) {
+            if(this.stores[id]) {
                 console.error(`A Plugin with id="${id}" already registered a store!`);
                 return;
             }
 
-            this.pluginStores[id] = defineStore(`plugin_${id}`, store);
+            this.stores[id] = defineStore(`plugin_${id}`, store);
         },
         apply(data) {
             const idx = this.plugins.findIndex(p => p.id == data.plugin_id);
@@ -299,7 +299,7 @@ export const usePluginStore = defineStore('plugin', {
         },
         reset() {
             this.plugins = [];
-            this.pluginStores = {};
+            this.stores = {};
         },
         async remove() {
             return remove(id).then(data => {
