@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 - API endpoint for getting all entity details data in one request: GET::v1/entity/{id}/entity_detail
 - Added specific log file for plugins
 - .jsconfig for intellisense to work properly with aliases
+- GetNameAttribute to EntityTypeModel
+
 ### Fixed
 - Removed redundant calls to the entity endpoint
 - Metadata tab error on submit (unknown variable)

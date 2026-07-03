@@ -77,4 +77,9 @@ class EntityType extends Model
     public function thesaurus_concept() {
         return $this->belongsTo('App\ThConcept', 'thesaurus_url', 'concept_url');
     }
+    
+    public function getNameAttribute()
+    {
+        return $this->thesaurus_concept->getActiveLocaleLabel();
+    }
 }
