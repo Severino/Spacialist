@@ -12,7 +12,10 @@
                 @mouseenter="onEntityHeaderHover(true)"
                 @mouseleave="onEntityHeaderHover(false)"
             >
-                <span :title="state.entity.name">
+                <span
+                    :title="state.entity.name"
+                    @dblclick.prevent.stop="editEntityName()"
+                >
                     {{ state.entity.name }}
                 </span>
             </h3>
@@ -270,9 +273,7 @@
                     >
                         <component
                             :is="tab.component"
-                            :id="tab.id"
-                            :name="tab.name"
-                            :type="tab.type"
+                            v-bind="tab.data"
                         />
                     </a>
                 </li>
@@ -430,9 +431,7 @@
                 >
                     <component
                         :is="panel.component"
-                        :id="panel.id"
-                        :name="panel.name"
-                        :type="panel.type"
+                        v-bind="panel.data"
                     />
                 </div>
             </template>
@@ -1206,16 +1205,28 @@
             const buildDynalot = (componentName) => {
                 let items = [];
                 for(let dynalot of dynalots) {
-                    const component = dynalot.getComponent(componentName)
-                    const data = dynalot.getData();
-                    data.forEach(item => {
-                        items.push({
-                            name: item.name,
-                            id: item.id,
-                            type: item.type,
-                            component: component,
+                    let component = null;
+                    try {
+                        component = dynalot.getComponent(componentName)
+                    } catch(e) {
+                        console.error(`Error loading dynalot component ${componentName} for dynalot with id ${dynalot.id}`, e);
+                    }
+
+                    if(component) {
+                        const data = dynalot.getData();
+                        data.forEach(item => {
+                            if(!item || !item.id) {
+                                console.error(`Dynalot item with component ${componentName} is missing id`, item);
+                                return;
+                            }
+
+                            items.push({
+                                id: item.id,
+                                data: item,
+                                component: component,
+                            });
                         });
-                    });
+                    }
                 }
                 return items;
             };
