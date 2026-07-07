@@ -544,6 +544,15 @@ export const useEntityStore = defineStore('entity', {
         unset() {
             this.set({});
         },
+        refreshEntity(entityId, data) {
+            this.entities[entityId] = {
+                ...this.entities[entityId],
+                ...data,
+            };
+            if(this.selectedEntity.id == entityId) {
+                this.selectedEntity = this.entities[entityId];
+            }
+        },
         setActiveUserIds(userIdList) {
             this.selectedEntityUserIds = [];
             this.selectedEntityUserIds = userIdList;

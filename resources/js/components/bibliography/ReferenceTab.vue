@@ -28,9 +28,7 @@
                     </div>
                 </div>
             </div>
-            <hr
-                v-if="state.hasEntityReferences && state.hasAttributeReferences"
-            >
+            <hr v-if="state.hasEntityReferences && state.hasAttributeReferences">
             <template v-if="state.hasAttributeReferences">
                 <template
                     v-for="(referenceGroup, key) in state.attributeReferences"
@@ -161,7 +159,7 @@
                     router.push({
                         append: true,
                         name: 'entityrefs',
-                        query: currentRoute.query,
+                        query: { tab: 'references' },
                         params: {
                             aid: aid,
                         },
