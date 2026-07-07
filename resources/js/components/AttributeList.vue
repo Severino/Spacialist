@@ -98,9 +98,7 @@
                                     />
                                 </button>
                             </div>
-                            <div
-                                class="text-end col d-inline-block text-truncate"
-                            >
+                            <div class="text-end col d-inline-block text-truncate">
                                 <span v-if="element.is_system">
                                     &nbsp;
                                 </span>
@@ -125,7 +123,7 @@
                                 <i class="fas fa-fw fa-circle-info" />
                             </a>
                             <sup
-                                v-if="hasEmitter('onEditElement') && !!element.pivot.depends_on && Object.keys(element.pivot.depends_on).length > 0"
+                                v-if="hasEmitter('onEditElement') && hasDependencies(element)"
                                 :title="t('global.dependency.depends_on.desc')"
                             >
                                 <i class="fas fa-diagram-next text-warning fa-rotate-180" />
@@ -682,6 +680,13 @@
                 itemClasses: computed(_ => options.value.item_classes),
             });
 
+            const hasDependencies = element => {
+                if(!element?.pivot?.depends_on) return false;
+                const dependsOn = element.pivot.depends_on;
+                if(typeof dependsOn !== 'object') return false;
+                return Object.keys(dependsOn).length > 0;
+            }
+
             const initializeTooltips = _ => {
                 document.querySelectorAll('[data-bs-toggle="popover"]')
                     .forEach(popoverElement => new Popover(popoverElement));
@@ -756,6 +761,7 @@
                 hasBookmarks,
                 inactiveMetadataClass,
                 handleLabelClick,
+                hasDependencies,
                 // STATE
                 attrRefs,
                 state,
