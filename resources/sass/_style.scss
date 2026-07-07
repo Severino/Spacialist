@@ -310,3 +310,13 @@ table.table-sticky .dropdown-menu {
     min-width: 250px;
     z-index: $zindex-sticky-in-page + 1;
 }
+
+/**
+* Vue draggable does support a :ghost-class prop but it only allows for a single
+* class to be passed. This is not a solvable problem, as it just passes the class to
+* the underlying SortableJS library, which only allows for a single class to be passed.
+*/
+.sortable-ghost {
+    background-color: var(--bs-gray-200) !important;
+    border-radius: var(--bs-border-radius) !important;
+}

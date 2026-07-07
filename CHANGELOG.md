@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 - Login was not routed properly
 - Plugin-Switch not resetting on failed installation
 - Retrieve plugin preferences from plugin store
+- Data Model becoming unresponsive after first add, requiring reload to continue working
 ### Changed
 - Alerts can now be dismissed
 - Now entity metadata is only loaded when accessing the metadata tab
