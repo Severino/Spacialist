@@ -22,6 +22,7 @@ All notable changes to this project will be documented in this file.
 - Plugin-Switch not resetting on failed installation
 - Retrieve plugin preferences from plugin store
 - Data Model becoming unresponsive after first add, requiring reload to continue working
+- References not showing up when added for the first time
 ### Changed
 - Alerts can now be dismissed
 - Now entity metadata is only loaded when accessing the metadata tab
