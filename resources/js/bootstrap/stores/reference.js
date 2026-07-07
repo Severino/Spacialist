@@ -19,7 +19,7 @@ export const useReferenceStore = defineStore('reference', {
         currentAttributeReferences() {
             const entity = useEntityStore().selectedEntity;
             if(!entity?.references) return [];
-            const  {
+            const {
                 on_entity,
                 ...attributedReferences
             } = entity.references;
@@ -34,8 +34,26 @@ export const useReferenceStore = defineStore('reference', {
             }
         },
         handleAdd(entityId, attributeUrl, data) {
-            const references = this.getReferences(entityId, attributeUrl);
-            references.push(data);
+            const entity = useEntityStore().getEntity(entityId);
+            if(!entity) {
+                console.error(`Entity ${entityId} not found in store. Cannot add reference.`);
+            }
+            
+            // If we add, we need the same object reference so we can trigger
+            // a entity refresh in the entity store to trigger the reactivity of the entity object.
+            const references = entity.references || {};
+            if(attributeUrl) {
+                references[attributeUrl] = references[attributeUrl] || [];
+                references[attributeUrl].push(data);
+            } else {
+                references.on_entity = references.on_entity || [];
+                references.on_entity.push(data);
+            }
+
+            useEntityStore().refreshEntity(entityId, {
+                ...entity,
+                references: references,
+            })
         },
         handleDelete(entityId, attributeUrl, referenceId) {
             const references = this.getReferences(entityId, attributeUrl);
