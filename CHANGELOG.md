@@ -33,6 +33,7 @@ All notable changes to this project will be documented in this file.
 - Moved plugin state into separate store
 - Plugins no longer require a routes file
 - Exposed bootstrap on window object
+- Allow editing of citekey in bibliography
 
 ## 0.11.1
 ### Added

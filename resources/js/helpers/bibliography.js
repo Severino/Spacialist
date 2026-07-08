@@ -3,6 +3,7 @@ export const bibliographyTypes = [
         name: 'article',
         id: 0,
         fields: [
+            'citekey',
             'author',
             'title',
             'journal',
@@ -27,6 +28,7 @@ export const bibliographyTypes = [
         name: 'book',
         id: 1,
         fields: [
+            'citekey',
             'title',
             'publisher',
             'year',
@@ -54,6 +56,7 @@ export const bibliographyTypes = [
         name: 'incollection',
         id: 2,
         fields: [
+            'citekey',
             'author',
             'title',
             'booktitle',
@@ -84,7 +87,9 @@ export const bibliographyTypes = [
     {
         name: 'misc',
         id: 3,
-        fields: ['author',
+        fields: [
+            'citekey',
+            'author',
             'title',
             'howpublished',
             'month',
@@ -92,12 +97,16 @@ export const bibliographyTypes = [
             'note',
             'email',
             'url'
-        ]
+        ],
+        mandatory: {
+            title: true,
+        },
     },
     {
         name: 'booklet',
         id: 4,
         fields: [
+            'citekey',
             'title',
             'author',
             'howpublished',
@@ -116,6 +125,7 @@ export const bibliographyTypes = [
         name: 'conference',
         id: 5,
         fields: [
+            'citekey',
             'author',
             'title',
             'booktitle',
@@ -144,6 +154,7 @@ export const bibliographyTypes = [
         name: 'inbook',
         id: 6,
         fields: [
+            'citekey',
             'title',
             'publisher',
             'year',
@@ -176,6 +187,7 @@ export const bibliographyTypes = [
         name: 'inproceedings',
         id: 7,
         fields: [
+            'citekey',
             'author',
             'title',
             'booktitle',
@@ -204,6 +216,7 @@ export const bibliographyTypes = [
         name: 'manual',
         id: 8,
         fields: [
+            'citekey',
             'title',
             'author',
             'organization',
@@ -223,6 +236,7 @@ export const bibliographyTypes = [
         name: 'mastersthesis',
         id: 9,
         fields: [
+            'citekey',
             'author',
             'title',
             'school',
@@ -245,6 +259,7 @@ export const bibliographyTypes = [
         name: 'phdthesis',
         id: 10,
         fields: [
+            'citekey',
             'author',
             'title',
             'school',
@@ -267,6 +282,7 @@ export const bibliographyTypes = [
         name: 'proceedings',
         id: 11,
         fields: [
+            'citekey',
             'title',
             'year',
             'editor',
@@ -290,6 +306,7 @@ export const bibliographyTypes = [
         name: 'techreport',
         id: 12,
         fields: [
+            'citekey',
             'author',
             'title',
             'institution',
@@ -313,6 +330,7 @@ export const bibliographyTypes = [
         name: 'unpublished',
         id: 13,
         fields: [
+            'citekey',
             'author',
             'title',
             'note',

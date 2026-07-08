@@ -88,6 +88,7 @@ class Bibliography extends Model implements Searchable
     ];
 
     const patchRules = [
+        'citekey'      => 'string',
         'entry_type'   => 'string',
         'file'         => 'file',
         // bibtex standard fields
@@ -127,6 +128,7 @@ class Bibliography extends Model implements Searchable
     public const bibtexTypes = [
         "article" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'author',
                 'doi',
@@ -152,6 +154,7 @@ class Bibliography extends Model implements Searchable
         ],
         "book" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'author',
@@ -179,6 +182,7 @@ class Bibliography extends Model implements Searchable
         ],
         "incollection" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'author',
@@ -212,6 +216,7 @@ class Bibliography extends Model implements Searchable
         ],
         "misc" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'author',
                 'doi',
@@ -227,6 +232,7 @@ class Bibliography extends Model implements Searchable
         ],
         "booklet" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'author',
@@ -246,6 +252,7 @@ class Bibliography extends Model implements Searchable
         ],
         "conference" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'author',
@@ -275,6 +282,7 @@ class Bibliography extends Model implements Searchable
         ],
         "inbook" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'author',
@@ -309,6 +317,7 @@ class Bibliography extends Model implements Searchable
         ],
         "inproceedings" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'author',
@@ -338,6 +347,7 @@ class Bibliography extends Model implements Searchable
         ],
         "manual" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'author',
@@ -358,6 +368,7 @@ class Bibliography extends Model implements Searchable
         ],
         "mastersthesis" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'author',
@@ -381,6 +392,7 @@ class Bibliography extends Model implements Searchable
         ],
         "phdthesis" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'author',
@@ -404,6 +416,7 @@ class Bibliography extends Model implements Searchable
         ],
         "proceedings" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'doi',
@@ -428,6 +441,7 @@ class Bibliography extends Model implements Searchable
         ],
         "techreport" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'address',
                 'author',
@@ -452,6 +466,7 @@ class Bibliography extends Model implements Searchable
         ],
         "unpublished" => [
             "fields" => [
+                'citekey',
                 'abstract',
                 'author',
                 'email',
@@ -534,6 +549,9 @@ class Bibliography extends Model implements Searchable
                 $strippedFields[$key] = $field;
             }
         }
+        info($fields);
+        info("stripped");
+        info($strippedFields);
 
         return $strippedFields;
     }
@@ -587,7 +605,9 @@ class Bibliography extends Model implements Searchable
         $isValid = self::validateMandatory($validateFields, $type);
         if(!$isValid) return false;
 
-        $this->citekey = self::computeCitationKey($this->toArray());
+        if(!$this->citekey && !$fields["citekey"]){
+            $this->citekey = self::computeCitationKey($this->toArray());
+        }
         $this->user_id = $user->id;
         $this->save();
         return true;
