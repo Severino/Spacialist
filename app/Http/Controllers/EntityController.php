@@ -218,7 +218,7 @@ class EntityController extends Controller {
      * to achieve much better performance.
      */
     public function getEntityDetail(int $id) {
-         $user = auth()->user();
+        $user = auth()->user();
         if(!$user->can('entity_read') || !$user->can('entity_data_read')) {
             return response()->json([
                 'error' => __('You do not have the permission to get an entity\'s data'),
@@ -484,7 +484,9 @@ class EntityController extends Controller {
         $nameColumn = trim($data['name_column']);
         $parentColumn = isset($data['parent_column']) ? trim($data['parent_column']) : null;
         $entityTypeId = trim($data['entity_type_id']);
-        $attributesMapping = array_map(fn ($col) => trim($col), $data['attributes']);
+        $entityAttribution = isset($data['entity_attribution']) ? trim($data['entity_attribution']) : null;
+        $entityLicence = isset($data['entity_licence']) ? trim($data['entity_licence']) : null;
+        $attributesMapping = array_map(fn($col) => trim($col), $data['attributes']);
 
         $headerRow = null;
         $hasParent = false;
@@ -497,6 +499,8 @@ class EntityController extends Controller {
         $affectedRows = 0;
         $parentIdx = null;
         $nameIdx = null;
+        $attributionIdx = null;
+        $licenceIdx = null;
 
         // Getting headers
         if(($row = fgetcsv($handle, 0, $metadata['delimiter'])) !== false) {
@@ -505,13 +509,21 @@ class EntityController extends Controller {
                 $headerRow = $row;
                 for($i = 0; $i < count($row); $i++) {
                     // Use the provided column name or the column number
-                    $columnName = $hasHeaderRow ? $row[$i] : "#".($i + 1);
+                    $columnName = $hasHeaderRow ? $row[$i] : "#" . ($i + 1);
 
                     if($columnName == $nameColumn) {
                         $nameIdx = $i;
                     } else if(isset($parentColumn) && $columnName == $parentColumn) {
                         $parentIdx = $i;
                         $hasParent = true;
+                    }
+
+                    if(isset($entityAttribution) && $columnName == $entityAttribution) {
+                        $attributionIdx = $i;
+                    }
+                    
+                    if(isset($entityLicence) && $columnName == $entityLicence) {
+                        $licenceIdx = $i;
                     }
 
                     foreach($attributesMapping as $id => $a) {
@@ -554,6 +566,8 @@ class EntityController extends Controller {
             $entityName = $row[$nameIdx];
             $entityPath = $entityName;
             $entityId = null;
+            $attribution = $row[$attributionIdx] ?? null;
+            $licence = $row[$licenceIdx] ?? null;
 
             $errorResponseData = new ImportExceptionStruct(
                 count: count($changedEntities) + 1,
@@ -598,7 +612,7 @@ class EntityController extends Controller {
             try{
                 $user = auth()->user();
                 if($entityId == null) {
-                    $entity = $this->createImportedEntity($entityName, $rootEntityPath, $entityTypeId, $user);
+                    $entity = $this->createImportedEntity($entityName, $rootEntityPath, $entityTypeId, $user, $attribution, $licence);
 
                     // If create entity fails, return error
                     if($entity["type"] !== "entity") {
@@ -614,9 +628,22 @@ class EntityController extends Controller {
                     }
 
                     $entityId = $entity['entity']->id;
+                }else{
+                    $entity = Entity::findOrFail($entityId);
+                    if(isset($attribution) || isset($licence)) {
+                        $entityMetadata = $entity->metadata ?? [];
+                        if(isset($licence)) {
+                            $entityMetadata['licence'] = $licence;
+                        }
+                        if(isset($attribution)) {
+                            $entityMetadata['summary'] = $attribution;
+                        }
+                        $entity->metadata = $entityMetadata;
+                    }
+                    $entity->save();
                 }
 
-                $this->setOrUpdateImportedAttributes($entityId, $row, $headerRow, $attributeIdToColumnIdxMapping, $attributeTypes, $user);
+                $this->setOrUpdateImportedAttributes($entityId, $row, $headerRow, $attributeIdToColumnIdxMapping, $attributeTypes, $user, $attribution);
                 $changedEntities[] = $entityId;
             } catch(AttributeImportException $e) {
                 DB::rollBack();
@@ -774,7 +801,7 @@ class EntityController extends Controller {
         return $files;
     }
 
-    function createImportedEntity($entityName, ?string $rootEntityPath, $entityTypeId, $user) {
+    function createImportedEntity($entityName, ?string $rootEntityPath, $entityTypeId, $user, $attribution, $licence) {
         $rootEntityId = null;
         if(isset($rootEntityPath)) {
             try {
@@ -786,7 +813,7 @@ class EntityController extends Controller {
 
         return Entity::create([
             'name' => $entityName,
-        ], $entityTypeId, $user, $rootEntityId);
+        ], $entityTypeId, $user, $rootEntityId,null, $attribution, $licence);
     }
 
     function setOrUpdateImportedAttributes($entity_id, $row, $headerRow, $attributeIdToColumnIdxMapping, $attributeTypes, $user) {
@@ -862,7 +889,7 @@ class EntityController extends Controller {
                 DB::rollback();
                 return response()->json([
                     'error' => $error['message'],
-            ], $error['code']);
+                ], $error['code']);
             }
         }
 
@@ -1108,7 +1135,7 @@ class EntityController extends Controller {
             ], 403);
         }
 
-       $request->validate([
+        $request->validate([
             'rank' => 'required_without:to_end|integer',
             'parent_id' => 'nullable|integer|exists:entities,id',
             'to_end' => 'nullable|boolean',
@@ -1119,7 +1146,7 @@ class EntityController extends Controller {
             $entity = Entity::findOrFail($id);
         } catch(ModelNotFoundException $e) {
             return response()->json([
-            'error' => __('This entity does not exist'),
+                'error' => __('This entity does not exist'),
             ], 400);
         }
 

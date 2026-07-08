@@ -87,6 +87,56 @@
             />
         </div>
     </div>
+    <div>
+        <label
+            for="import-entity-attribution"
+            class="form-label d-flex"
+        >
+            {{ t('main.importer.column_entity_attribution') }}
+            <ValuesMissingIndicator
+                class="ms-2"
+                :missing="getMissing('entityAttribution')"
+                :total="getTotal('entityAttribution')"
+            />
+        </label>
+        <multiselect
+            id="import-entity-attribution"
+            :classes="multiselectResetClasslist"
+            :disabled="disabled"
+            :hide-selected="true"
+            :value="entityAttribution"
+            :options="sortedAvailableColumns"
+            :placeholder="t('global.select.placeholder')"
+            :searchable="true"
+            :append-to-body="true"
+            @change="(value) => $emit('update:entityAttribution', value, entityAttribution)"
+        />
+    </div>
+    <div>
+        <label
+            for="import-entity-licence"
+            class="form-label d-flex"
+        >
+            {{ t('main.importer.column_entity_licence') }}
+            <ValuesMissingIndicator
+                class="ms-2"
+                :missing="getMissing('entityLicence')"
+                :total="getTotal('entityLicence')"
+            />
+        </label>
+        <multiselect
+            id="import-entity-licence"
+            :classes="multiselectResetClasslist"
+            :disabled="disabled"
+            :hide-selected="true"
+            :value="entityLicence"
+            :options="sortedAvailableColumns"
+            :placeholder="t('global.select.placeholder')"
+            :searchable="true"
+            :append-to-body="true"
+            @change="(value) => $emit('update:entityLicence', value, entityLicence)"
+        />
+    </div>
 </template>
 
 <script>
@@ -117,6 +167,14 @@
                 type: String,
                 default: '',
             },
+            entityAttribution: {
+                type: String,
+                default: '',
+            },
+            entityLicence: {
+                type: String,
+                default: '',
+            },
             entityName: {
                 type: String,
                 default: '',
@@ -134,7 +192,13 @@
                 required: true,
             },
         },
-        emits: ['update:entityType', 'update:entityName', 'update:entityParent'],
+        emits: [
+            'update:entityType',
+            'update:entityName',
+            'update:entityParent',
+            'update:entityAttribution',
+            'update:entityLicence',
+        ],
         setup(props) {
             const { t } = useI18n();
 

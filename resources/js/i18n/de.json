@@ -1025,6 +1025,8 @@
             "import_btn": "Starte Datenimport",
             "validate": "Validieren",
             "success": "Import von 1 Eintrag abgeschlossen | Import von {cnt} Einträgen abgeschlossen",
+            "column_entity_attribution": "Beteiligte",
+            "column_entity_licence": "Lizenz",
             "validation": {
                 "title": "Validierung",
                 "waiting": "Validierung ausstehend",

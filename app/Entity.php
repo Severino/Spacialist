@@ -164,7 +164,8 @@ class Entity extends Model implements Searchable {
         return $entities;
     }
 
-    public static function create($fields, $entityTypeId, $user, $rootEntityId = null, $rank = null) {
+    public static function create($fields, $entityTypeId, $user, $rootEntityId = null, $rank = null, $attribution = null, $licence = null) {
+        info("LICENSE CREATE:: " . $licence);
         $isChild = isset($rootEntityId);
         if($isChild) {
             $parentCtid = self::find($rootEntityId)->entity_type_id;
@@ -215,6 +216,17 @@ class Entity extends Model implements Searchable {
         }
         $entity->entity_type_id = $entityTypeId;
         $entity->user_id = $user->id;
+        
+        if(isset($attribution) || isset($licence)) {
+            $metadata = [];
+            if(isset($licence)) {
+                $metadata['licence'] = $licence;
+            }
+            if(isset($attribution)) {
+                $metadata['summary'] = $attribution;
+            }
+            $entity->metadata = $metadata;
+        }
         $entity->save();
 
         // TODO workaround to get all (optional, not part of request) attributes

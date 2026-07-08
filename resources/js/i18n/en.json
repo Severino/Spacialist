@@ -1026,6 +1026,8 @@
             "import_btn": "Start Import",
             "validate": "Validate",
             "success": "Import of 1 entry finished | Import of {cnt} entries finished",
+            "column_entity_attribution": "Contributors",
+            "column_entity_licence": "Licence",
             "validation": {
                 "title": "Validation",
                 "waiting": "Not validated yet.",

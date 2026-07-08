@@ -19,12 +19,16 @@
                             v-model:entityType="entitySettings.entityType"
                             v-model:entityName="entitySettings.entityName"
                             v-model:entity-parent="entitySettings.entityParent"
+                            v-model:entity-attribution="entitySettings.entityAttribution"
+                            v-model:entity-licence="entitySettings.entityLicence"
                             :stats="state.stats"
                             :available-entity-types="availableEntityTypes"
                             :available-columns="state.availableColumns"
                             :disabled="state.inputsDissabled"
                             @update:entity-name="onNameColumnChanged"
                             @update:entity-parent="onParentColumnChanged"
+                            @update:entity-attribution="onAttributionColumnChanged"
+                            @update:entity-licence="onEntityLicenceColumnChanged"
                         />
                         <Alert
                             v-else
@@ -369,6 +373,16 @@
                 state.stats.entityParent = stats;
             };
 
+            const onAttributionColumnChanged = (attributeValue) => {
+                const stats = determineColumnStats(attributeValue);
+                state.stats.entityAttribution = stats;
+            };
+
+            const onEntityLicenceColumnChanged = (attributeValue) => {
+                const stats = determineColumnStats(attributeValue);
+                state.stats.entityLicence = stats;
+            };
+
             const onAttributeMappingSelected = (attributeId, attributeValue) => {
                 const stats = determineColumnStats(attributeValue);
                 state.stats.attributes[attributeId] = stats;
@@ -405,6 +419,15 @@
                 if(!!entitySettings.entityParent) {
                     postData['parent_column'] = entitySettings.entityParent;
                 }
+
+                if(!!entitySettings.entityAttribution) {
+                    postData['entity_attribution'] = entitySettings.entityAttribution;
+                }
+                
+                if(!!entitySettings.entityLicence) {
+                    postData['entity_licence'] = entitySettings.entityLicence;
+                }
+
                 data.append('data', JSON.stringify(postData));
                 return data;
             };
@@ -465,6 +488,8 @@
                 entityType: null,
                 entityName: null,
                 entityParent: null,
+                entityAttribution: null,
+                entityLicence: null,
             });
 
             function resetEntitySettings() {
@@ -473,6 +498,8 @@
                 entitySettings.entityType = null;
                 entitySettings.entityName = null;
                 entitySettings.entityParent = null;
+                entitySettings.entityAttribution = null;
+                entitySettings.entityLicence = null;
             }
 
             const attributeSettings = reactive({
@@ -529,6 +556,9 @@
                 state.availableAttributes = [];
                 state.stats.entityName = { missing: 0, total: 0 };
                 state.stats.entityParent = { missing: 0, total: 0 };
+                state.stats.entityAttribution = { missing: 0, total: 0 };
+                state.stats.entityLicence = { missing: 0, total: 0 };
+                
                 state.stats.attributes = {};
 
                 cancelImport();
@@ -548,6 +578,8 @@
                 stats: {
                     entityName: { missing: 0, total: 0 },
                     entityParent: { missing: 0, total: 0 },
+                    entityAttribution: { missing: 0, total: 0 },
+                    entityLicence: { missing: 0, total: 0 },
                     attributes: {},
                 },
                 utf8Content: computed(_ => state.encoding == 'UTF-8'),
@@ -613,6 +645,8 @@
                 onEntityTypeSelected,
                 onNameColumnChanged,
                 onParentColumnChanged,
+                onAttributionColumnChanged,
+                onEntityLicenceColumnChanged,
                 removeFile,
                 upload,
                 validate,
