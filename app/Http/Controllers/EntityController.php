@@ -18,6 +18,7 @@ use App\Exceptions\Structs\AttributeImportExceptionStruct;
 use App\Exceptions\Structs\ImportExceptionStruct;
 use App\Import\EntityImporter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +30,9 @@ use Exception;
 use ZipArchive;
 
 class EntityController extends Controller {
+    
+    private $parentCache = [];
+
     /**
      * Create a new controller instance.
      *
@@ -467,6 +471,8 @@ class EntityController extends Controller {
      * TODO: Move this functionality into the EntityImporter class.
      */
     public function importData(Request $request) {
+        $user = auth()->user();
+        
         $errorResponse = $this->verifyImportData($request);
         if($errorResponse) {
             return $errorResponse;
@@ -509,7 +515,8 @@ class EntityController extends Controller {
             $row = sp_trim_array($row);
             try{
                 $headerRow = $row;
-                for($i = 0; $i < count($row); $i++) {
+                $rowCount = count($row);
+                for($i = 0; $i < $rowCount; $i++) {
                     // Use the provided column name or the column number
                     $columnName = $hasHeaderRow ? $row[$i] : "#" . ($i + 1);
 
@@ -557,6 +564,12 @@ class EntityController extends Controller {
 
         $bibliographyCache = [];
 
+        // Suppress all Eloquent model events (WebSocket broadcasts, etc.) during import.
+        // A bulk import does not need per-row live updates; the caller handles the result.
+        $eventDispatcher = Model::getEventDispatcher();
+        Model::unsetEventDispatcher();
+
+        try {
         //Processing rows
         while(($row = fgetcsv($handle, 0, $metadata['delimiter'])) !== false) {
             $row = sp_trim_array($row);
@@ -591,21 +604,26 @@ class EntityController extends Controller {
                 $errorResponseData->on_index = $parentIdx + 1;
                 $errorResponseData->on_value = $row[$parentIdx];
 
-                try{
-                    $parentEntity = Entity::getFromPath($rootEntityPath);
-                    if(!isset($parentEntity)) {
+                if(isset($this->parentCache[$rootEntityPath])){
+                    $parentEntity = $this->parentCache[$rootEntityPath];
+                }else{
+                    try{
+                        $parentEntity = Entity::getFromPath($rootEntityPath);
+                        if(!isset($parentEntity)) {
+                            DB::rollBack();
+                            return response()->json([
+                                'error' => __('Parent entity does not exist'),
+                                'data' => $errorResponseData
+                            ], 400);
+                        }
+                        $this->parentCache[$rootEntityPath] = $parentEntity;
+                    } catch(AmbiguousValueException $ave) {
                         DB::rollBack();
                         return response()->json([
-                            'error' => __('Parent entity does not exist'),
-                            'data' => $errorResponseData
+                            'error' => __($ave->getMessage()),
+                            'data' => $errorResponseData,
                         ], 400);
                     }
-                } catch(AmbiguousValueException $ave) {
-                    DB::rollBack();
-                    return response()->json([
-                        'error' => __($ave->getMessage()),
-                        'data' => $errorResponseData,
-                    ], 400);
                 }
             }
 
@@ -619,7 +637,6 @@ class EntityController extends Controller {
                 ], 400);
             }
             try{
-                $user = auth()->user();
                 $entity = null;
                 if($entityId == null) {
                     $entity = $this->createImportedEntity($entityName, $rootEntityPath, $entityTypeId, $user, $attribution, $licence);
@@ -668,12 +685,14 @@ class EntityController extends Controller {
                    }
                 }
 
-                $this->setOrUpdateImportedAttributes($entityId, $row, $headerRow, $attributeIdToColumnIdxMapping, $attributeTypes, $user, $attribution);
+                $this->setOrUpdateImportedAttributes($entityId, $row, $headerRow, $attributeIdToColumnIdxMapping, $attributeTypes, $user);
                 $changedEntities[] = $entityId;
             } catch(AttributeImportException $e) {
+                $this->parentCache = [];
                 DB::rollBack();
                 return response()->json($e->toImportExceptionObject(count($changedEntities) + 1, $entityName), 400);
             } catch(ImportException $e) {
+                $this->parentCache = [];
                 DB::rollBack();
                 return response()->json(
                     [
@@ -683,15 +702,19 @@ class EntityController extends Controller {
                     400
                 );
             } catch(Exception $e) {
+                $this->parentCache = [];
                 DB::rollBack();
                 return response()->json(
-                    [
+                [
                         'error' => $e->getMessage(),
                         'data' => $errorResponseData
                     ],
                     400
                 );
             }
+        }
+        } finally {
+            Model::setEventDispatcher($eventDispatcher);
         }
 
         if($affectedRows === 0) {
@@ -702,6 +725,7 @@ class EntityController extends Controller {
         }
 
         fclose($handle);
+        $this->parentCache = [];
         DB::commit();
         return response()->json($changedEntities, 201);
     }
