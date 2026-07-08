@@ -21,6 +21,7 @@
                             v-model:entity-parent="entitySettings.entityParent"
                             v-model:entity-attribution="entitySettings.entityAttribution"
                             v-model:entity-licence="entitySettings.entityLicence"
+                            v-model:entity-reference="entitySettings.entityReference"
                             :stats="state.stats"
                             :available-entity-types="availableEntityTypes"
                             :available-columns="state.availableColumns"
@@ -29,6 +30,7 @@
                             @update:entity-parent="onParentColumnChanged"
                             @update:entity-attribution="onAttributionColumnChanged"
                             @update:entity-licence="onEntityLicenceColumnChanged"
+                            @update:entity-reference="onReferenceColumnChanged"
                         />
                         <Alert
                             v-else
@@ -382,6 +384,11 @@
                 const stats = determineColumnStats(attributeValue);
                 state.stats.entityLicence = stats;
             };
+            
+            const onReferenceColumnChanged = (attributeValue) => {
+                const stats = determineColumnStats(attributeValue);
+                state.stats.entityReference = stats;
+            };
 
             const onAttributeMappingSelected = (attributeId, attributeValue) => {
                 const stats = determineColumnStats(attributeValue);
@@ -426,6 +433,10 @@
                 
                 if(!!entitySettings.entityLicence) {
                     postData['entity_licence'] = entitySettings.entityLicence;
+                }
+                
+                if(!!entitySettings.entityReference) {
+                    postData['entity_reference'] = entitySettings.entityReference;
                 }
 
                 data.append('data', JSON.stringify(postData));
@@ -490,6 +501,7 @@
                 entityParent: null,
                 entityAttribution: null,
                 entityLicence: null,
+                entityReference: null,
             });
 
             function resetEntitySettings() {
@@ -500,6 +512,7 @@
                 entitySettings.entityParent = null;
                 entitySettings.entityAttribution = null;
                 entitySettings.entityLicence = null;
+                entitySettings.entityReference = null;
             }
 
             const attributeSettings = reactive({
@@ -558,6 +571,7 @@
                 state.stats.entityParent = { missing: 0, total: 0 };
                 state.stats.entityAttribution = { missing: 0, total: 0 };
                 state.stats.entityLicence = { missing: 0, total: 0 };
+                state.stats.entityReference = { missing: 0, total: 0 };
                 
                 state.stats.attributes = {};
 
@@ -580,6 +594,7 @@
                     entityParent: { missing: 0, total: 0 },
                     entityAttribution: { missing: 0, total: 0 },
                     entityLicence: { missing: 0, total: 0 },
+                    entityReference: { missing: 0, total: 0 },
                     attributes: {},
                 },
                 utf8Content: computed(_ => state.encoding == 'UTF-8'),

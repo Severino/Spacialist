@@ -486,6 +486,7 @@ class EntityController extends Controller {
         $entityTypeId = trim($data['entity_type_id']);
         $entityAttribution = isset($data['entity_attribution']) ? trim($data['entity_attribution']) : null;
         $entityLicence = isset($data['entity_licence']) ? trim($data['entity_licence']) : null;
+        $entityReference = isset($data['entity_reference']) ? trim($data['entity_reference']) : null;
         $attributesMapping = array_map(fn($col) => trim($col), $data['attributes']);
 
         $headerRow = null;
@@ -501,6 +502,7 @@ class EntityController extends Controller {
         $nameIdx = null;
         $attributionIdx = null;
         $licenceIdx = null;
+        $referenceIdx = null;
 
         // Getting headers
         if(($row = fgetcsv($handle, 0, $metadata['delimiter'])) !== false) {
@@ -521,9 +523,13 @@ class EntityController extends Controller {
                     if(isset($entityAttribution) && $columnName == $entityAttribution) {
                         $attributionIdx = $i;
                     }
-                    
+
                     if(isset($entityLicence) && $columnName == $entityLicence) {
                         $licenceIdx = $i;
+                    }
+
+                    if(isset($entityReference) && $columnName == $entityReference) {
+                        $referenceIdx = $i;
                     }
 
                     foreach($attributesMapping as $id => $a) {
@@ -549,6 +555,8 @@ class EntityController extends Controller {
             rewind($handle);
         }
 
+        $bibliographyCache = [];
+
         //Processing rows
         while(($row = fgetcsv($handle, 0, $metadata['delimiter'])) !== false) {
             $row = sp_trim_array($row);
@@ -568,6 +576,7 @@ class EntityController extends Controller {
             $entityId = null;
             $attribution = $row[$attributionIdx] ?? null;
             $licence = $row[$licenceIdx] ?? null;
+            $reference = $row[$referenceIdx] ?? null;
 
             $errorResponseData = new ImportExceptionStruct(
                 count: count($changedEntities) + 1,
@@ -611,6 +620,7 @@ class EntityController extends Controller {
             }
             try{
                 $user = auth()->user();
+                $entity = null;
                 if($entityId == null) {
                     $entity = $this->createImportedEntity($entityName, $rootEntityPath, $entityTypeId, $user, $attribution, $licence);
 
@@ -641,6 +651,21 @@ class EntityController extends Controller {
                         $entity->metadata = $entityMetadata;
                     }
                     $entity->save();
+                }
+
+                if(isset($reference)) {
+                   try{
+                        if(!$entityId){
+                            throw new Exception("Entity not found for reference import");
+                        }
+                        Reference::importReferences($reference, $entityId, $bibliographyCache);
+                   }catch (Exception $e) {
+                        DB::rollBack();
+                        return response()->json([
+                            'error' => __('Reference could not be imported: ') . $e->getMessage(),
+                            'data' => $errorResponseData,
+                        ], 400);
+                   }
                 }
 
                 $this->setOrUpdateImportedAttributes($entityId, $row, $headerRow, $attributeIdToColumnIdxMapping, $attributeTypes, $user, $attribution);

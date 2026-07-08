@@ -137,6 +137,31 @@
             @change="(value) => $emit('update:entityLicence', value, entityLicence)"
         />
     </div>
+    <div>
+        <label
+            for="import-entity-reference"
+            class="form-label d-flex"
+        >
+            {{ t('main.importer.column_entity_reference') }}
+            <ValuesMissingIndicator
+                class="ms-2"
+                :missing="getMissing('entityReference')"
+                :total="getTotal('entityReference')"
+            />
+        </label>
+        <multiselect
+            id="import-entity-reference"
+            :classes="multiselectResetClasslist"
+            :disabled="disabled"
+            :hide-selected="true"
+            :value="entityReference"
+            :options="sortedAvailableColumns"
+            :placeholder="t('global.select.placeholder')"
+            :searchable="true"
+            :append-to-body="true"
+            @change="(value) => $emit('update:entityReference', value, entityReference)"
+        />
+    </div>
 </template>
 
 <script>
@@ -175,6 +200,10 @@
                 type: String,
                 default: '',
             },
+            entityReference:{
+                type: String,
+                default: '',
+            },
             entityName: {
                 type: String,
                 default: '',
@@ -198,6 +227,7 @@
             'update:entityParent',
             'update:entityAttribution',
             'update:entityLicence',
+            'update:entityReference',
         ],
         setup(props) {
             const { t } = useI18n();

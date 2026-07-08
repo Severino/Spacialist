@@ -1028,6 +1028,7 @@
             "success": "Import of 1 entry finished | Import of {cnt} entries finished",
             "column_entity_attribution": "Contributors",
             "column_entity_licence": "Licence",
+            "column_entity_reference": "References",
             "validation": {
                 "title": "Validation",
                 "waiting": "Not validated yet.",

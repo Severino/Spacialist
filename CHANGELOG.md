@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - Added specific log file for plugins
 - GetNameAttribute to EntityTypeModel
 - Import option for attribution and licence metadata fields
+- Import option for references tab
 ### Fixed
 - Removed redundant calls to the entity endpoint
 - Metadata tab error on submit (unknown variable)

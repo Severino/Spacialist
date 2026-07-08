@@ -1027,6 +1027,7 @@
             "success": "Import von 1 Eintrag abgeschlossen | Import von {cnt} Einträgen abgeschlossen",
             "column_entity_attribution": "Beteiligte",
             "column_entity_licence": "Lizenz",
+            "column_entity_reference": "Quellenangaben",
             "validation": {
                 "title": "Validierung",
                 "waiting": "Validierung ausstehend",

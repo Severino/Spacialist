@@ -11,6 +11,7 @@ use App\Exceptions\AmbiguousValueException;
 use App\Import\ImportResolution;
 use App\Attribute;
 use App\AttributeTypes\AttributeBase;
+use App\Reference;
 use App\ThConcept;
 use Exception;
 
@@ -27,6 +28,7 @@ class EntityImporter {
     private $metadata;
     private array $attributesMap;
     private array $attributeIdToAttributeValue = [];
+    private array $bibliographyCache = [];
     private int $entityTypeId;
     private string $nameColumn;
     private ?string $parentColumn = null;
@@ -40,7 +42,12 @@ class EntityImporter {
         $this->nameColumn = $data['name_column'] ?? '';
         $this->entityTypeId = $data['entity_type_id'];
         $this->attributesMap = $data['attributes'];
-
+        $this->entityReference = $data['entity_reference'] ?? null;
+        
+        if($this->entityReference) {
+            $this->entityReference = trim($this->entityReference);
+        }
+        
         // The parent column is optional, therefore we only set it
         // to another value than null, if there is valid data set.
         if(array_key_exists('parent_column', $data)) {
@@ -73,6 +80,7 @@ class EntityImporter {
     }
 
     public function validateImportData($filepath) {
+        $this->bibliographyCache = [];
         $this->validateStringData('nameColumn', 'name_column');
         $this->validateStringData('entityTypeId', 'entity_type_id');
         $this->validateAttributeData();
@@ -97,6 +105,7 @@ class EntityImporter {
 
         $this->verifyNameColumn($headers);
         $this->verifyParentColumn($headers);
+        $this->verifyReferenceColumn($headers);
         $this->verifyEntityType($this->entityTypeId);
         $this->verifyAttributeMapping($headers);
 
@@ -112,6 +121,10 @@ class EntityImporter {
                     $this->validateLocation($row, $index);
                 }
                 $this->validateAttributesInRow($row, $index);
+                
+                if($this->entityReference) {                
+                    $this->validateEntityReference($row, $index);
+                }
             });
         } catch(CsvColumnMismatchException $csvMismatchException) {
             return $this->resolver->conflict(__("entity-importer.csv-column-mismatch", [
@@ -127,6 +140,7 @@ class EntityImporter {
         }
 
         fclose($handle);
+        $this->bibliographyCache = [];
         return $this->resolver;
     }
 
@@ -141,6 +155,14 @@ class EntityImporter {
     private function verifyParentColumn($headers): bool {
         if(isset($this->parentColumn) && !in_array($this->parentColumn, $headers)) {
             $this->resolver->conflict(__("entity-importer.parent-column-does-not-exist", ["column" => $this->parentColumn]));
+            return false;
+        }
+        return true;
+    }
+    
+    private function verifyReferenceColumn($headers): bool {
+        if(isset($this->entityReference) && !in_array($this->entityReference, $headers)) {
+            $this->resolver->conflict(__("entity-importer.reference-column-does-not-exist", ["column" => $this->entityReference]));
             return false;
         }
         return true;
@@ -264,7 +286,32 @@ class EntityImporter {
         }
         return count($errors) == 0;
     }
-
+    
+    private function validateEntityReference($row, $index){
+        $reference = $row[$this->entityReference];
+        if(!empty($reference)){
+            $parsedReferences = Reference::parseReferencedFromString($reference);
+            $errors = [];
+            foreach($parsedReferences as $parsedReference){
+                if(!$parsedReference["valid"]){
+                    $errors[] = "Wrong format of Reference: " . $parsedReference['input'];
+                    continue;
+                }    
+                
+                $hasValidCiteKey = Reference::checkIfCiteKeyIsValid($parsedReference['citeKey'], $this->bibliographyCache);
+                if(!$hasValidCiteKey){
+                    $errors[] = "Bibliography with citekey does not exist: " . $parsedReference['citeKey'];
+                    continue;
+                }
+            }
+            
+            if(count($errors) > 0){
+                $this->rowConflict($index, "Error importing Biliography:\n" . implode("; ", $errors));
+            }
+        }
+    }
+    
+    
     private function rowConflict($rowIndex, $msg, $args = []) {
         $tmsg = __($msg, $args);
         $this->resolver->conflict("[" . ($rowIndex + 1) . "] " . $tmsg);
