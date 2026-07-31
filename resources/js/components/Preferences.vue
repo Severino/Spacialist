@@ -76,7 +76,7 @@
                                     {{ t(preferencesBlock.title) }}
                                 </strong>
                             </td>
-                            <td>
+                            <td>                                
                                 <component
                                     :is="preferencesBlock.component"
                                     :model-value="(preferencesBlock.data === 'v-model') ? state.preferences[preferencesBlock.label] : null"
@@ -191,6 +191,7 @@
             };
 
             const updateValue = (preferencesBlock, data) => {
+                console.log("UPDATE VALUE: ", preferencesBlock.label, data);
                 if(preferencesBlock.data === 'v-model') {
                     state.preferences[preferencesBlock.label] = data;
                 }

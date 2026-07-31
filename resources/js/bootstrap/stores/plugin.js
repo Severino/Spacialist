@@ -11,6 +11,10 @@ import {
     upload,
 } from '@/api/plugin.js';
 
+import {
+    availableDynalots,
+} from '@/helpers/plugin/plugin-dynalot.js';
+
 import { isInstalled } from '@/helpers/plugins.js';
 import { filterAllChildArrays } from "@/helpers/object";
 import {
@@ -34,7 +38,18 @@ export const usePluginStore = defineStore('plugin', {
             tab: [],
             tools: [],
             settings: [],
+            dataModelOptions: [],
         },
+        /**
+         * Dynalots are similar to slots, only that they don't have a single rigid position in the
+         * UI but provide components to be rendered under specific conditions, 
+         * e.g. on the entity detail page, a various amount of tabs can be added dependent on the
+         * plugin data provided for the subscription.
+         */
+        registeredDynalots: availableDynalots().reduce((acc, topic) => {
+            acc[topic] = [];
+            return acc;
+        }, {}),
     }),
     actions: {
         add(plugin) {
@@ -126,7 +141,31 @@ export const usePluginStore = defineStore('plugin', {
 
             return this.registeredSlots[slotName] ?? [];
         },
+        getDynalotItems(slot) {
+            console.log(this.registeredDynalots);
 
+            if(!this.registeredDynalots[slot]) {
+                console.error('Dynalot does not exist', slot);
+                return [];
+            }
+
+            return this.registeredDynalots[slot] ?? [];
+        },
+        updateDynalots(slot, context) {
+            const dynalots = this.registeredDynalots[slot];
+            if(!dynalots) {
+                console.error('Dynalot does not exist', slot);
+                return;
+            }
+
+            dynalots.forEach(dynalot => {
+                try {
+                    dynalot.update(context)
+                } catch(e) {
+                    console.error('Error updating dynalot', dynalot, e);
+                }
+            });
+        },
         async publishScript(plugin) {
             console.log('Publishing script for plugin', plugin);
             if(plugin.scripts) {
@@ -177,6 +216,8 @@ export const usePluginStore = defineStore('plugin', {
             this.registeredAttributes[datatype] = data;
         },
         registerPreference(data) {
+            console.log("DATA::: ", JSON.stringify(data))
+            
             const category = data.category;
             if(!category) {
                 console.error('Plugin preference category does not exist', data.category);
@@ -211,6 +252,7 @@ export const usePluginStore = defineStore('plugin', {
                 preferenceCategory[data.subcategory].custom = true;
                 preferenceCategory[data.subcategory].title = data.custom_label;
             }
+            console.log(JSON.stringify(pref))
             preferenceCategory[data.subcategory].preferences.push(pref);
         },
         registerInSlot(data) {
@@ -226,6 +268,18 @@ export const usePluginStore = defineStore('plugin', {
             }
 
             this.registeredSlots[slot].push(data);
+        },
+        registerDynalot(data) {
+            if(!data.slot || !data.of || !data.slot) {
+                console.error('Plugin dynalot is missing slot information', data);
+            } else {
+                if(!this.registeredDynalots[data.slot]) {
+                    console.error('Plugin dynalot slot is not supported', data.slot);
+                    return;
+                }
+
+                this.registeredDynalots[data.slot].push(data);
+            }
         },
         reset() {
             this.plugins = [];
