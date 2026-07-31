@@ -142,8 +142,6 @@ export const usePluginStore = defineStore('plugin', {
             return this.registeredSlots[slotName] ?? [];
         },
         getDynalotItems(slot) {
-            console.log(this.registeredDynalots);
-
             if(!this.registeredDynalots[slot]) {
                 console.error('Dynalot does not exist', slot);
                 return [];
@@ -216,8 +214,6 @@ export const usePluginStore = defineStore('plugin', {
             this.registeredAttributes[datatype] = data;
         },
         registerPreference(data) {
-            console.log("DATA::: ", JSON.stringify(data))
-            
             const category = data.category;
             if(!category) {
                 console.error('Plugin preference category does not exist', data.category);
@@ -252,7 +248,6 @@ export const usePluginStore = defineStore('plugin', {
                 preferenceCategory[data.subcategory].custom = true;
                 preferenceCategory[data.subcategory].title = data.custom_label;
             }
-            console.log(JSON.stringify(pref))
             preferenceCategory[data.subcategory].preferences.push(pref);
         },
         registerInSlot(data) {
