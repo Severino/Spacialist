@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 - Access Points (Plugins can define additional access points to restrict user access to certain parts of the plugin)
 - Plugin-System now supports custom components, e.g. attribute types
 - Plugin-System now supports PluginScopes
+- Plugin-System now supports PluginCommands
 - Plugin-System now supports Hooks: Custom functions that are executed after API calls.
 - Plugin-System now supports CSS files
 - Plugin script can be (re-)published via interface 

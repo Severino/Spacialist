@@ -10,6 +10,7 @@ use App\Plugin\PluginDirectory;
 use App\Plugin\PluginManifest;
 use App\Services\Plugin\AccessPointsService;
 use App\Services\Plugin\AttributeService;
+use App\Services\Plugin\CommandService;
 use App\Services\Plugin\CssService;
 use App\Services\Plugin\DependencyService;
 use App\Services\Plugin\HookService;
@@ -42,6 +43,7 @@ class PluginManager {
     public function __construct(
         public readonly AccessPointsService $accessPoints,
         public readonly AttributeService $attributeService,
+        public readonly CommandService $commandService,
         public readonly CssService $cssService,
         public readonly DependencyService $dependencyService,
         public readonly HookService $hookService,
