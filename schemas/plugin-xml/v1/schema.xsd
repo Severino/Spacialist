@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Schema for the Spacialist plugin manifest (plugin.xml).
+
+    Services with no manifest entry:
+      ScriptService    - always publishes js/script.js
+      DiscoveryService - finds plugins by folder name
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+
+    <!-- Root. <plugin> is used by the test suite; <info> is the name in PLUGINS.md.
+         Manifest.php does not check the root name, so both are accepted. -->
+    <xs:element name="plugin" type="PluginManifest"/>
+    <xs:element name="info" type="PluginManifest">
+        <xs:annotation><xs:documentation>Legacy root name from PLUGINS.md. Prefer &lt;plugin&gt;.</xs:documentation></xs:annotation>
+    </xs:element>
+    <!-- ===== Simple types ===== -->
+
+    <xs:simpleType name="PluginName">
+        <xs:annotation><xs:documentation>Name of the plugin in PascalCase.</xs:documentation></xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[a-zA-Z0-9]+"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="Version">
+        <xs:annotation><xs:documentation>Plugin Version should be in the format of 1.1.1(-x(.1)). Where 1 can be any number and x is a stringfrom the set: dev,alpha,a,beta,b,RC,rc,pl,p.</xs:documentation></xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="\d+(\.\d+)*([-+._](dev|alpha|a|beta|b|RC|rc|pl|p)([-+._]\d+)*){0,1}"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="RelativePath">
+        <xs:annotation><xs:documentation>Path relative to the plugin folder.</xs:documentation></xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ClassPath">
+        <xs:annotation><xs:documentation>Class path relative to the plugin namespace App\Plugins\{name}, with / or \ as separator, e.g. Scopes/EntityScope.</xs:documentation></xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[/\\]?[A-Za-z_][A-Za-z0-9_]*([/\\][A-Za-z_][A-Za-z0-9_]*)*"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ClassMethod">
+        <xs:annotation><xs:documentation>Class@method, class relative to the plugin namespace (HookValidator).</xs:documentation></xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="\s*[/\\]?[A-Za-z_][A-Za-z0-9_]*([/\\][A-Za-z_][A-Za-z0-9_]*)*@[A-Za-z_][A-Za-z0-9_]*\s*"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="HttpMethod">
+        <xs:annotation><xs:documentation>Upper-cased by HookValidator, so lower case is accepted too.</xs:documentation></xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[Gg][Ee][Tt]|[Pp][Oo][Ss][Tt]|[Pp][Uu][Tt]|[Dd][Ee][Ll][Ee][Tt][Ee]|[Pp][Aa][Tt][Cc][Hh]"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- ===== Shared Types ===== -->
+
+    <xs:complexType name="SrcFile">
+        <xs:attribute name="src" type="RelativePath" use="required"/>
+    </xs:complexType>
+
+    <!-- ===== Complex types ===== -->
+
+    <xs:complexType name="PluginManifest">
+        <!-- xs:all: children may appear in any order, each at most once. -->
+        <xs:all>
+            <!-- ===== Metadata (Manifest.php, Plugin::updateMetadataFromManifest) ===== -->
+            <xs:element name="name" type="PluginName">
+                <xs:annotation><xs:documentation>Plugin id. Must equal the plugin's folder name and the root folder in the uploaded zip (Uploader.php).</xs:documentation></xs:annotation>
+            </xs:element>
+            <xs:element name="title" type="xs:string" minOccurs="0">
+                <xs:annotation><xs:documentation>[LEGACY] Display title from PLUGINS.md. Not read since 0.12.</xs:documentation></xs:annotation>
+            </xs:element>
+            <xs:element name="description" type="xs:string" minOccurs="0"/>
+            <xs:element name="version" type="Version">
+                <xs:annotation><xs:documentation>Compared with PHP version_compare. An upload with a lower version than the installed one is refused.</xs:documentation></xs:annotation>
+            </xs:element>
+            <xs:element name="licence" type="xs:string" minOccurs="0"/>
+            <xs:element name="authors" type="Authors" minOccurs="0"/>
+
+            <!-- ===== DependencyService ===== -->
+            <xs:element name="dependencies" type="Dependencies" minOccurs="0"/>
+
+            <!-- ===== RouteService ===== -->
+            <xs:element name="routes" type="Routes" minOccurs="0">
+                <xs:annotation><xs:documentation>Without this element the deprecated routes/api.php is used if it exists.</xs:documentation></xs:annotation>
+            </xs:element>
+
+            <!-- ===== MigrationService ===== -->
+            <xs:element name="migrations" type="Migrations" minOccurs="0">
+                <xs:annotation><xs:documentation>Without this element the legacy folder "Migration" is used.</xs:documentation></xs:annotation>
+            </xs:element>
+
+            <!-- ===== HookService ===== -->
+            <xs:element name="hooks" type="Hooks" minOccurs="0"/>
+
+            <!-- ===== ScopeService ===== -->
+            <xs:element name="scopes" type="Scopes" minOccurs="0"/>
+
+            <!-- ===== AttributeService ===== -->
+            <xs:element name="attributes" type="Attributes" minOccurs="0"/>
+
+            <!-- ===== CssService ===== -->
+            <xs:element name="css" type="Css" minOccurs="0"/>
+
+            <!-- ===== PermissionService ===== -->
+            <xs:element name="permissions" type="Permissions" minOccurs="0">
+                <xs:annotation><xs:documentation>Without this element the legacy file App/permissions.json is used.</xs:documentation></xs:annotation>
+            </xs:element>
+
+            <!-- ===== RolePresetService ===== -->
+            <xs:element name="role-presets" type="RolePresets" minOccurs="0">
+                <xs:annotation><xs:documentation>The deprecated file role-presets.json in the plugin root is still loaded when not listed here.</xs:documentation></xs:annotation>
+            </xs:element>
+
+            <!-- ===== AccessPointsService ===== -->
+            <xs:element name="accesspoints" type="AccessPoints" minOccurs="0"/>
+        </xs:all>
+    </xs:complexType>
+
+    <!-- ===== Metadata ===== -->
+
+    <xs:complexType name="Authors">
+        <xs:sequence>
+            <xs:element name="author" type="xs:string" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- ===== Dependencies ===== -->
+
+    <xs:complexType name="Dependencies">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="plugin" type="PluginDependency"/>
+            <xs:element name="core" type="CoreDependency"/>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="PluginDependency">
+        <xs:annotation><xs:documentation>The named plugin must be present, installed and within [min, max] (both inclusive).</xs:documentation></xs:annotation>
+        <xs:attribute name="name" type="PluginName" use="required"/>
+        <xs:attribute name="min" type="Version"/>
+        <xs:attribute name="max" type="Version"/>
+    </xs:complexType>
+
+    <xs:complexType name="CoreDependency">
+        <xs:annotation><xs:documentation>Spacialist version range. Parsed in 0.12 but not yet evaluated.</xs:documentation></xs:annotation>
+        <xs:attribute name="min" type="Version"/>
+        <xs:attribute name="max" type="Version"/>
+    </xs:complexType>
+
+    <!-- ===== Routes ===== -->
+
+    <xs:complexType name="Routes">
+        <xs:attribute name="src" type="RelativePath" use="required">
+            <xs:annotation><xs:documentation>Routes file, mounted under api/v1/{plugin-slug} with controllers in App\Plugins\{name}\Controllers.</xs:documentation></xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="middleware" type="xs:string" default="api">
+            <xs:annotation><xs:documentation>Middleware group. The default "api" group has no authentication; add auth:sanctum in the routes file.</xs:documentation></xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <!-- ===== Migrations ===== -->
+
+    <xs:complexType name="Migrations">
+        <xs:annotation><xs:documentation>Folder with Laravel-style migration files. Given as src attribute or as text content; the attribute wins.</xs:documentation></xs:annotation>
+        <xs:attribute name="src" type="RelativePath"/>
+    </xs:complexType>
+
+    <!-- ===== Hooks ===== -->
+
+    <xs:complexType name="Hooks">
+        <xs:sequence>
+            <xs:element name="hook" type="Hook" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="Hook">
+        <xs:annotation><xs:documentation>Runs Class@method(Request, Response) after the core route responds. The route must exist; sanctum/csrf-cookie and broadcasting/auth are forbidden.</xs:documentation></xs:annotation>
+        <xs:attribute name="on" type="xs:string" use="required">
+            <xs:annotation><xs:documentation>Laravel route URI without leading slash, e.g. api/v1/entity/{id}.</xs:documentation></xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="src" type="ClassMethod" use="required"/>
+        <xs:attribute name="method" type="HttpMethod" default="GET"/>
+        <xs:attribute name="order" type="xs:integer" default="0">
+            <xs:annotation><xs:documentation>Hooks on the same route run in ascending order.</xs:documentation></xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <!-- ===== Scopes ===== -->
+
+    <xs:complexType name="Scopes">
+        <xs:sequence>
+            <xs:element name="scope" type="Scope" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="Scope">
+        <xs:annotation><xs:documentation>Adds an Eloquent global scope to a core model that uses HasPluginScopes (currently App\Entity).</xs:documentation></xs:annotation>
+        <xs:attribute name="src" type="ClassPath" use="required"/>
+        <xs:attribute name="on" type="xs:string" use="required">
+            <xs:annotation><xs:documentation>Fully qualified model class, e.g. App\Entity.</xs:documentation></xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <!-- ===== Attributes ===== -->
+
+    <xs:complexType name="Attributes">
+        <xs:sequence>
+            <xs:element name="attribute" type="AttributeType" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="AttributeType">
+        <xs:annotation><xs:documentation>Registers a custom attribute type class; the class must exist at install time.</xs:documentation></xs:annotation>
+        <xs:attribute name="src" type="ClassPath" use="required"/>
+    </xs:complexType>
+
+    <!-- ===== CSS ===== -->
+
+    <xs:complexType name="Css">
+        <xs:sequence>
+            <xs:element name="file" type="SrcFile" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- ===== Permissions ===== -->
+
+    <xs:complexType name="Permissions">
+        <xs:annotation><xs:documentation>Only the src attribute of this element is read. Note: PLUGINS.md shows a &lt;permission&gt; child, which the code ignores.</xs:documentation></xs:annotation>
+        <xs:attribute name="src" type="RelativePath" default="App/permissions.json"/>
+    </xs:complexType>
+
+    <!-- ===== Role presets ===== -->
+
+    <xs:complexType name="RolePresets">
+        <xs:annotation><xs:documentation>Note: PLUGINS.md shows &lt;role-preset&gt; children; the code reads &lt;file&gt;.</xs:documentation></xs:annotation>
+        <xs:sequence>
+            <xs:element name="file" type="SrcFile" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- ===== Access points ===== -->
+
+    <xs:complexType name="AccessPoints">
+        <xs:sequence>
+            <xs:element name="accesspoint" type="AccessPoint" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="AccessPoint">
+        <xs:attribute name="id" type="xs:string" use="required"/>
+        <xs:attribute name="label" type="xs:string" use="required">
+            <xs:annotation><xs:documentation>Translation key, e.g. plugin.myplugin.title.</xs:documentation></xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="path" type="xs:string" use="required"/>
+    </xs:complexType>
+
+</xs:schema>
