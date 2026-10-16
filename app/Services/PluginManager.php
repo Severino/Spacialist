@@ -13,6 +13,7 @@ use App\Services\Plugin\AttributeService;
 use App\Services\Plugin\CssService;
 use App\Services\Plugin\DependencyService;
 use App\Services\Plugin\HookService;
+use App\Services\Plugin\ListenerService;
 use App\Services\Plugin\MigrationService;
 use App\Services\Plugin\PermissionService;
 use App\Services\Plugin\DiscoveryService;
@@ -50,6 +51,7 @@ class PluginManager {
         public readonly ScriptService $scriptService,
         public readonly ScopeService $scopeService,
         public readonly DiscoveryService $discoveryService,
+        public readonly ListenerService $listenerService,
     ) {
         $this->pluggableServices = func_get_args();
     }

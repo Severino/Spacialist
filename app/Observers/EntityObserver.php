@@ -5,7 +5,7 @@ namespace App\Observers;
 use App\Entity;
 use App\Events\EntityCreated;
 use App\Events\EntityDeleted;
-use App\Events\EntityUpdated;
+use App\Events\Broadcast\EntityUpdated;
 use App\Notification;
 use App\Notifications\EntityUpdated as EntityUpdatedNotification;
 use App\User;
@@ -45,13 +45,14 @@ class EntityObserver
      *
      */
     public function saved(Entity $entity) : void {
+        $user = auth()->user();
+        if($entity->wasRecentlyCreated) {
+            event(new EntityCreated($entity, $user));
+            return;
+        }
+
         try {
-            $user = auth()->user();
-            if($entity->wasRecentlyCreated) {
-                broadcast(new EntityCreated($entity, $user))->toOthers();
-            } else {
-                broadcast(new EntityUpdated($entity, $user))->toOthers();
-            }
+            broadcast(new EntityUpdated($entity, $user))->toOthers();
         } catch(BroadcastException $e) {
             if(env('APP_DEBUG')) {
                 info("BroadcastException while handling saved() event in EntityObserver");
@@ -69,12 +70,6 @@ class EntityObserver
         Entity::where('root_entity_id', $entity->root_entity_id)->where('rank', '>', $entity->rank)->decrement('rank');
         // Delete notifications where the deleted entity is referenced
         Notification::whereRaw("(data::json->>'resource')::json->>'id' = ?", [$entity->id])->delete();
-        try {
-            broadcast(new EntityDeleted($entity, $user = auth()->user()))->toOthers();
-        } catch(BroadcastException $e) {
-            if(env('APP_DEBUG')) {
-                info("BroadcastException while handling deleting() event in EntityObserver");
-            }
-        }
+        event(new EntityDeleted($entity, auth()->user()));
     }
 }

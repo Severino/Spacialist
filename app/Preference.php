@@ -54,7 +54,7 @@ class Preference extends Model
     public static function hasPublicAccess() {
         $value = self::where('label', 'prefs.project-maintainer')->value('default_value');
         $decodedValue = json_decode($value);
-        return sp_parse_boolean($decodedValue->public);
+        return (isset($decodedValue->public)) ? sp_parse_boolean($decodedValue->public) : false;
     }
 
     public static function decodePreference($label, $value) {

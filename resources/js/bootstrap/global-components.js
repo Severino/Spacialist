@@ -7,7 +7,6 @@ import EntityBreadcrumbs from '@/components/EntityBreadcrumbs.vue';
 import UserAvatar from '@/components/UserAvatar.vue';
 import ActivityLog from '@/components/ActivityLog.vue';
 import CommentList from '@/components/CommentList.vue';
-import { EmojiPicker } from 'dhc-components';
 import GlobalSearch from '@/components/search/Global.vue';
 import SimpleSearch from '@/components/search/Simple.vue';
 import InteractiveMap from '@/components/map/InteractiveMap.vue';
@@ -38,7 +37,6 @@ export default function initGlobalComponents(app) {
     app.component('UserAvatar', UserAvatar);
     app.component('ActivityLog', ActivityLog);
     app.component('CommentList', CommentList);
-    app.component('EmojiPicker', EmojiPicker);
     app.component('GlobalSearch', GlobalSearch);
     app.component('SimpleSearch', SimpleSearch);
     app.component('SpMap', InteractiveMap);

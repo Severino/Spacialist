@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Events;
+namespace App\Events\Broadcast;
 
 use App\AttributeValue;
 use App\User;
@@ -10,7 +10,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class AttributeValueUpdated implements ShouldBroadcast
+class AttributeValueCreated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -27,6 +27,14 @@ class AttributeValueUpdated implements ShouldBroadcast
         $this->attributeValue = $attributeValue;
         $this->user = $user;
         $this->value = $attributeValue->getValue();
+    }
+
+    /**
+     * Keeps the event name the frontend listens to stable.
+     */
+    public function broadcastAs(): string
+    {
+        return 'App\\Events\\AttributeValueCreated';
     }
 
     /**

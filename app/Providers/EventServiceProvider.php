@@ -6,8 +6,14 @@ use App\AttributeValue;
 use App\Bibliography;
 use App\Comment;
 use App\Entity;
+use App\Events\AttributeValueDeleted;
+use App\Events\AttributeValueSaved;
+use App\Events\EntityCreated;
+use App\Events\EntityDeleted;
+use App\Listeners\BroadcastDataEvents;
 use App\Listeners\DisableMigrationLogging;
 use App\Reference;
+use App\Services\Plugin\ListenerService;
 use App\Observers\BibliographyObserver;
 use App\Observers\CommentObserver;
 use App\Observers\EntityObserver;
@@ -28,6 +34,18 @@ class EventServiceProvider extends ServiceProvider
         // 'App\Events\Event' => [
         //     'App\Listeners\EventListener',
         // ],
+        AttributeValueSaved::class => [
+            [BroadcastDataEvents::class, 'onAttributeValueSaved'],
+        ],
+        AttributeValueDeleted::class => [
+            [BroadcastDataEvents::class, 'onAttributeValueDeleted'],
+        ],
+        EntityCreated::class => [
+            [BroadcastDataEvents::class, 'onEntityCreated'],
+        ],
+        EntityDeleted::class => [
+            [BroadcastDataEvents::class, 'onEntityDeleted'],
+        ],
         MigrationStarted::class => [
             DisableMigrationLogging::class,
         ],
@@ -49,6 +67,6 @@ class EventServiceProvider extends ServiceProvider
         Entity::observe(EntityObserver::class);
         AttributeValue::observe(EntityAttributeObserver::class);
         Reference::observe(ReferenceObserver::class);
-        //
+        app(ListenerService::class)->registerListeners();
     }
 }

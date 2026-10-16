@@ -1,29 +1,40 @@
 <?php
 
-namespace App\Events;
+namespace App\Events\Broadcast;
 
-use App\Entity;
+use App\AttributeValue;
 use App\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class EntityUpdated implements ShouldBroadcast
+class AttributeValueDeleted implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
+
+    public $value;
 
     /**
      * Create a new event instance.
      */
     public function __construct(
-        public Entity $entity,
+        public AttributeValue $attributeValue,
         public User $user,
     )
     {
-        $this->entity = $entity;
+        $this->attributeValue = $attributeValue;
         $this->user = $user;
+        $this->value = $attributeValue->getValue();
+    }
+
+    /**
+     * Keeps the event name the frontend listens to stable.
+     */
+    public function broadcastAs(): string
+    {
+        return 'App\\Events\\AttributeValueDeleted';
     }
 
     /**
@@ -34,7 +45,7 @@ class EntityUpdated implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('channel.system'),
+            new PresenceChannel('room.entity.' . $this->attributeValue->entity->id),
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Events\EntityTypeAttributeRemoved;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
@@ -60,6 +61,8 @@ class EntityAttribute extends Model
         AttributeValue::where('attribute_id', $aid)
             ->whereIn('entity_id', $entityIds)
             ->delete();
+
+        event(new EntityTypeAttributeRemoved($aid, $etid));
     }
 
     public static function for($entityId, $attributeId) {
