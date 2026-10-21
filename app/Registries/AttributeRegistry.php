@@ -55,8 +55,12 @@ class AttributeRegistry {
                 info("Attribute class '{$AttributeNamespace}' is not a subclass of AttributeBase.");
                 continue;
             }
-
-            self::register(new $AttributeNamespace(), $pluginName);
+            
+            $attributeClass = new $AttributeNamespace();
+            $key = $attributeClass::getType();
+            if(!array_key_exists($key, self::$types)){
+                self::register($attributeClass, $pluginName);
+            }
         }
     }
 

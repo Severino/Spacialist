@@ -2,8 +2,7 @@
 
 namespace App\Services\Plugin;
 
-use App\Enums\LifecycleOperation;
-use App\Exceptions\PluginLifecycleException;
+use Exception;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
@@ -27,45 +26,26 @@ class MigrationService extends PluginService {
     const LEGACY_MIGRATION_DIRECTORY = 'Migration';
 
     public function install(Plugin $plugin, PluginManifest $manifest): void {
-        $this->run($plugin, LifecycleOperation::INSTALLATION);
+        $this->run($plugin);
     }
 
     public function update(Plugin $plugin, PluginManifest $manifest): void {
-        $this->run($plugin, LifecycleOperation::UPDATE);
+        $this->run($plugin);
     }
 
     public function remove(Plugin $plugin, PluginManifest $manifest): void {
-        $this->rollback($plugin, LifecycleOperation::REMOVE);
+        $this->rollback($plugin);
     }
 
-    public function inspect(Plugin $plugin): array {
-        $ranMigrations = PluginMigration::where('plugin_id', $plugin->id)
-            ->pluck('migration')
-            ->toArray();
-
-        $directory = $this->getMigrationDirectory($plugin);
-        $absoluteDirectory = PluginDirectory::fromPlugin($plugin)->getAbsolutePluginPath($directory);
-        $allMigrations = $this->getMigrationList($absoluteDirectory);
-        $migrations = [];
-        foreach($allMigrations as $migration) {
-            $migrations[] = [
-                'name' => $migration,
-                'ran' => in_array($migration, $ranMigrations)
-            ];
-        }
-
-        return $migrations;
+    public function run(Plugin $plugin, int $steps = 0): void {
+        $this->exec($plugin, false, $steps);
     }
 
-    public function run(Plugin $plugin, ?LifecycleOperation $operation = null): void {
-        $this->exec($plugin, operation: $operation);
+    public function rollback(Plugin $plugin, int $steps = 0): void {
+        $this->exec($plugin, true, $steps);
     }
 
-    public function rollback(Plugin $plugin, ?LifecycleOperation $operation = null): void {
-        $this->exec($plugin, true, $operation);
-    }
-
-    protected function exec(Plugin $plugin, bool $rollback = false, ?LifecycleOperation $operation = null) {
+    protected function exec(Plugin $plugin, bool $rollback = false, int $steps = 0) {
         //Determine the next batch number
         $nextBatch = PluginMigration::getNextBatchNumber();
         $directory = $this->getMigrationDirectory($plugin);
@@ -76,15 +56,25 @@ class MigrationService extends PluginService {
             //Legacy support: If the default migration directory does not exist, we assume there are no migrations to run and return early.
             if($directory === self::LEGACY_MIGRATION_DIRECTORY) {
                 return;
+            } else {
+                throw new Exception("Migration directory not found: '$absoluteDirectory'");
             }
-
-            throw new PluginLifecycleException($plugin, "Migration directory not found: '$absoluteDirectory'", $operation);
         }
 
-        $migrations = $this->getMissingMigrations($plugin, $rollback);
-        foreach($migrations as $migration) {
+        $migrations = [];
+        if($rollback) {
+            $migrations = $this->getRollbackMigrations($plugin);
+        } else {
+            $migrations = $this->getPendingMigrations($plugin);
+        }
+
+        // When no steps are supplied take all migrations and if steps are supplied make sure its atmost the migrations amount.
+        $actualSteps = ($steps === 0) ? count($migrations) : min($steps, count($migrations));
+        for($step = 0; $step < $actualSteps; $step++) {
+            
+            $migration = $migrations[$step];
             $migrationInstance = $this->getMigrationClassName($plugin, $absoluteDirectory, $migration);
-            try{
+            try {
                 call_user_func([$migrationInstance, $rollback ? 'rollback' : 'migrate']);
                 if($rollback) {
                     //Remove the record of the migration
@@ -99,7 +89,7 @@ class MigrationService extends PluginService {
                         'batch' => $nextBatch
                     ]);
                 }
-            }catch(\Exception $e) {
+            } catch(\Exception $e) {
                 throw $e;
             }
         }
@@ -178,14 +168,7 @@ class MigrationService extends PluginService {
         return PluginDirectory::fromPlugin($plugin)->getAbsolutePluginPath($migrationDirectory);
     }
 
-    /**
-     * Get's a list of migration files in the plugin on the filesystem.
-     *
-     * @param Plugin $plugin - The plugin to get the migration list for
-     * @param mixed $rollback - If true, get the list in descending order. Required for rollbacks to get the last migration first.
-     * @return array - A list of migration file names, e.g. ["2024_01_01_000000_create_users_table.php", "2024_01_02_000000_create_posts_table.php"]
-     */
-    function getMigrationList(string $migrationDirectory, $rollback = false): array {
+    function getMigrationList(string $migrationDirectory): array {
         if(file_exists($migrationDirectory) && is_dir($migrationDirectory)) {
             $migrations = collect(File::files($migrationDirectory))->map(function ($f) {
                 return $f->getFilename();
@@ -196,19 +179,14 @@ class MigrationService extends PluginService {
                 return count($matches) == 3;
             });
 
-            if($rollback) {
-                $migrations = $migrations->sortDesc();
-            } else {
-                $migrations = $migrations->sort();
-            }
-
+            $migrations = $migrations->sort();
             return $migrations->values()->toArray();
         } else {
             return [];
         }
     }
 
-    function resolveDirectoryNamspace(Plugin $plugin, string $migrationDirectory):string {
+    function resolveDirectoryNamspace(Plugin $plugin, string $migrationDirectory): string {
         $normalizedPath = str_replace('/', '\\', Str::after($migrationDirectory, PluginDirectory::getPathByName($plugin->name)));
         // Transform the path into a namespace e.g. app/plugins/my-plugin to App\Plugins\MyPlugin
         $namespace = collect(explode('\\', $normalizedPath))
@@ -271,10 +249,9 @@ class MigrationService extends PluginService {
      * migrations and retuns all migrations that are not yet in the database.
      *
      * @param Plugin $plugin - The plugin to check for missing migrations
-     * @param mixed $rollback - If true, get all that are in the database and on the file system. To get a list of migrations that can be rolled back.
-     * @return array - A list of migration file names that are missing in the database (or that can be rolled back if $rollback is true)
+     * @return array<string, array['name' => string, 'ran' => bool]> - A list of migration file names that are missing in the database (or that can be rolled back if $rollback is true)
      */
-    function getMissingMigrations(Plugin $plugin, $rollback = false): array {
+    function getMigrationStatus(Plugin $plugin): array {
         $ranMigrations = PluginMigration::where('plugin_id', $plugin->id)
             ->pluck('migration')
             ->toArray();
@@ -282,12 +259,39 @@ class MigrationService extends PluginService {
         $absoluteDirectory = $this->getAbsoluteMigrationDirectory($plugin);
         $allMigrations = $this->getMigrationList($absoluteDirectory);
 
-        if($rollback) {
-            $missingMigrations = array_intersect($allMigrations, $ranMigrations);
-        } else {
-            $missingMigrations = array_diff($allMigrations, $ranMigrations);
-        }
-
-        return array_values($missingMigrations);
+        return array_map(function ($migration) use ($ranMigrations) {
+            $ran = in_array($migration, $ranMigrations);
+            return [
+                'name' => $migration,
+                'ran' => $ran
+            ];
+        }, $allMigrations);
     }
+
+    /**
+     * Get's all plugin migrations in the database and compares them with all file
+     * migrations and retuns all migrations that are not yet in the database.
+     *
+     * @param Plugin $plugin - The plugin to check for missing migrations
+     * @return array - A list of migration file names that are missing in the database (or that can be rolled back if $rollback is true)
+     */
+    function getPendingMigrations(Plugin $plugin): array {
+        // array_filter will the values with their keys and leaves it in a 'broken' state, this is fixed by array_values.
+        $pendingMigrations = array_values(array_filter($this->getMigrationStatus($plugin), fn($item) => $item['ran'] === false));
+        return array_map(fn($item) => $item["name"], $pendingMigrations);
+    }
+
+    /**
+     * Get's all plugin migrations in the database and compares them with all file
+     * migrations and retuns all migrations that are not yet in the database.
+     *
+     * @param Plugin $plugin - The plugin to check for missing migrations
+     * @return array - A list of migration file names that are missing in the database (or that can be rolled back if $rollback is true)
+     */
+    function getRollbackMigrations(Plugin $plugin): array {
+        // array_filter will the values with their keys and leaves it in a 'broken' state, this is fixed by array_values.
+        $ranMigrations = array_values(array_filter($this->getMigrationStatus($plugin), fn($item) => $item['ran'] === true));
+        return array_reverse(array_map(fn($item) => $item["name"], $ranMigrations));
+    }
+
 }

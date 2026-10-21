@@ -292,7 +292,7 @@ class PluginController extends Controller {
      */
     public function migrate(Request $request, Plugin $plugin) {
         app(MigrationService::class)->run($plugin);
-        $migrationState = app(MigrationService::class)->inspect($plugin);
+        $migrationState = app(MigrationService::class)->getMigrationStatus($plugin);
         return response()->json($migrationState);
     }
 
@@ -302,7 +302,7 @@ class PluginController extends Controller {
      */
     public function rollback(Request $request, Plugin $plugin) {
         app(MigrationService::class)->rollback($plugin);
-        $migrationState = app(MigrationService::class)->inspect($plugin);
+        $migrationState = app(MigrationService::class)->getMigrationStatus($plugin);
         return response()->json($migrationState);
     }
 
@@ -317,7 +317,7 @@ class PluginController extends Controller {
         ]);
 
         $migrationName = $request->input('name');
-        $missingMigrations = app(MigrationService::class)->getMissingMigrations($plugin);
+        $missingMigrations = app(MigrationService::class)->getPendingMigrations($plugin);
         if(!in_array($migrationName, $missingMigrations)) {
             return response()->json([
                 'error' => __('This migration does not exist or has already been run.')
@@ -325,7 +325,7 @@ class PluginController extends Controller {
         }
 
         app(MigrationService::class)->set($migrationName, $plugin);
-        $migrationState = app(MigrationService::class)->inspect($plugin);
+        $migrationState = app(MigrationService::class)->getMigrationStatus($plugin);
         return response()->json($migrationState);
     }
 
@@ -334,7 +334,7 @@ class PluginController extends Controller {
      * @return \Illuminate\Http\JsonResponse - Returns the current migration state after execution
      */
     public function getMigrationState(Request $request, Plugin $plugin) {
-        $migrationState = app(MigrationService::class)->inspect($plugin);
+        $migrationState = app(MigrationService::class)->getMigrationStatus($plugin);
         return response()->json($migrationState);
     }
 
