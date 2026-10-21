@@ -1,24 +1,25 @@
 <template>
-    <div>
-        <input
-            :id="name"
-            v-model="v.value"
-            class="form-control"
-            :disabled="disabled"
-            type="text"
-            :name="name"
-            :placeholder="t('main.entity.attributes.add_wkt')"
-        >
+    <div class="geography-attribute">
+        <div class="input-group">
+            <input
+                :id="name"
+                v-model="v.value"
+                class="form-control"
+                :disabled="disabled"
+                type="text"
+                :name="name"
+                :placeholder="t('main.entity.attributes.add_wkt')"
+            >
 
-        <button
-            type="button"
-            class="btn btn-outline-secondary mt-2"
-            :disabled="disabled"
-            @click="openGeographyModal()"
-        >
-            <i class="fas fa-fw fa-map-marker-alt" />
-            {{ t('main.entity.attributes.open_map') }}
-        </button>
+            <button
+                type="button"
+                class="btn btn-outline-secondary"
+                :disabled="disabled"
+                @click="openGeographyModal()"
+            >
+                <i class="fas fa-fw fa-map-marker-alt" />
+            </button>
+        </div>
     </div>
 </template>
 
