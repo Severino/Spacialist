@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Bibliography;
 use App\Entity;
 use Tests\TestCase;
 use Illuminate\Http\UploadedFile;
@@ -46,7 +47,7 @@ class ApiDataImporterTest extends TestCase {
             foreach($tableData as $row) {
                 // Cells need to be escaped, as some cells may contain elements that collide with the delimiter
                 // e.g. lists are separated by semicolons
-                $escapeAllRows = array_map(fn ($cell) => "\"$cell\"", $row);
+                $escapeAllRows = array_map(fn($cell) => "\"$cell\"", $row);
                 $content .= implode($delimiter, $escapeAllRows) . "\n";
             }
         }
@@ -54,12 +55,15 @@ class ApiDataImporterTest extends TestCase {
         return UploadedFile::fake()->createWithContent('data.csv', $content);
     }
 
-    private function getData(?string $name = 'name', int $entityTypeId = 3, array $attributes = [], ?string $parentColumn = null) {
+    private function getData(?string $name = 'name', int $entityTypeId = 3, array $attributes = [], ?string $parentColumn = null, ?string $entityReference = null, ?string $entityAttribution = null, ?string $entityLicence = null) {
         return json_encode([
             "name_column" => $name,
             "parent_column" => $parentColumn,
             "entity_type_id" => $entityTypeId,
             "attributes" => $attributes,
+            "entity_attribution" => $entityAttribution,
+            "entity_licence" => $entityLicence,
+            "entity_reference" => $entityReference,
         ]);
     }
 
@@ -299,27 +303,27 @@ class ApiDataImporterTest extends TestCase {
                 ]
             ]);
     }
-    
-    public function testValidationErrorOnNonTopEntityAsTop(){
-            $file = $this->createCSVFile([
-                ['name', 'parent', 'Notizen'],
-                ['Feature #1', '', 'Feature is not a top level entity.']
+
+    public function testValidationErrorOnNonTopEntityAsTop() {
+        $file = $this->createCSVFile([
+            ['name', 'parent', 'Notizen'],
+            ['Feature #1', '', 'Feature is not a top level entity.']
+        ]);
+
+        $this->userRequest()->post('/api/v1/entity/import/validate', [
+            'file' => $file,
+            'data' => $this->getData(parentColumn: 'parent', entityTypeId: 4),
+            'metadata' => $this->getMetaData(),
+        ])
+            ->assertStatus(200)
+            ->assertJson([
+                'errors' => ['[2] The relationship between entity types is not allowed: TOP -> Feature'],
+                "summary" => [
+                    "create" => 0,
+                    "update" => 0,
+                    "conflict" => 1
+                ]
             ]);
-            
-            $this->userRequest()->post('/api/v1/entity/import/validate', [
-                'file' => $file,
-                'data' => $this->getData(parentColumn: 'parent', entityTypeId: 4), 
-                'metadata' => $this->getMetaData(),
-            ])
-                ->assertStatus(200)
-                ->assertJson([
-                    'errors' => ['[2] The relationship between entity types is not allowed: TOP -> Feature'],
-                    "summary" => [
-                        "create" => 0,
-                        "update" => 0,
-                        "conflict" => 1
-                    ]
-                ]);
     }
 
     public function testValidationWithParentColumnTopLevelElementAlreadyExists() {
@@ -476,7 +480,7 @@ class ApiDataImporterTest extends TestCase {
         $this->userRequest()->post('/api/v1/entity/import/validate', [
             'file' => $this->createCSVFile([
                 ['name', 'parent', 'Abmessungen'],
-                ['bad',  'Site A', '1,2,3,cm'],
+                ['bad', 'Site A', '1,2,3,cm'],
             ]),
             'data' => $this->getData(
                 parentColumn: 'parent',
@@ -522,7 +526,7 @@ class ApiDataImporterTest extends TestCase {
         ]);
     }
 
-    public function testValidationWithDuplicateColumnMapping(){
+    public function testValidationWithDuplicateColumnMapping() {
         $response = $this->userRequest()->post('/api/v1/entity/import/validate', [
             'file' => $this->createDefaultCSVFile(),
             'data' => $this->getData(
@@ -647,10 +651,10 @@ class ApiDataImporterTest extends TestCase {
     }
 
     /**
-    *
-    * TESTS WITH NO HEADERS
-    *
-    */
+     *
+     * TESTS WITH NO HEADERS
+     *
+     */
 
     public function testValidationEmptyFileNoHeaders() {
         $file = $this->createCSVFile([]);
@@ -906,9 +910,9 @@ class ApiDataImporterTest extends TestCase {
             'data' => $this->getData(
                 name: "#1",
                 attributes: [
-                8 => "#3",
-                15 => "#4"
-            ]),
+                    8 => "#3",
+                    15 => "#4"
+                ]),
             'metadata' => $metadata,
         ])
             ->assertStatus(200)
@@ -930,9 +934,9 @@ class ApiDataImporterTest extends TestCase {
             'data' => $this->getData(
                 name: "#1",
                 attributes: [
-                8 => "#10",
-                15 => "#11"
-            ]),
+                    8 => "#10",
+                    15 => "#11"
+                ]),
             'metadata' => $metadata,
         ])->assertJson([
             'errors' => ["The attribute columns do not exist: #10, #11"],
@@ -952,9 +956,9 @@ class ApiDataImporterTest extends TestCase {
             'data' => $this->getData(
                 name: "#1",
                 attributes: [
-                -1 => "#3",
-                -1 => "#4"
-            ]),
+                    -1 => "#3",
+                    -1 => "#4"
+                ]),
             'metadata' => $metadata,
         ])
             ->assertStatus(200)
@@ -976,8 +980,8 @@ class ApiDataImporterTest extends TestCase {
             'data' => $this->getData(
                 name: "#1",
                 attributes: [
-                -1 => "#11",
-            ]),
+                    -1 => "#11",
+                ]),
             'metadata' => $metadata,
         ])
             ->assertStatus(200)
@@ -1027,7 +1031,7 @@ class ApiDataImporterTest extends TestCase {
 
         $this->userRequest()->post('/api/v1/entity/import/validate', [
             'file' => $this->createCSVFile([
-                ['bad',  'Site A', '1,2,3,cm'],
+                ['bad', 'Site A', '1,2,3,cm'],
             ]),
             'data' => $this->getData(
                 name: "#1",
@@ -1050,7 +1054,7 @@ class ApiDataImporterTest extends TestCase {
             ]);
     }
 
-    public function testDataImportFailsWithDuplicateColumnMapping(){
+    public function testDataImportFailsWithDuplicateColumnMapping() {
         $response = $this->userRequest()->post('/api/v1/entity/import', [
             'file' => $this->createDefaultCSVFile(),
             'data' => $this->getData(
@@ -1062,5 +1066,33 @@ class ApiDataImporterTest extends TestCase {
             'metadata' => $this->getMetaData(),
         ])
             ->assertStatus(201);
+    }
+
+    public function testReferenceImport() {
+
+        foreach(['old_man.1952', 'moby_dick.1851', 'verne.1871'] as $citekey) {
+            Bibliography::create([
+                'citekey' => $citekey,
+                'entry_type' => 'misc',
+                'user_id' => 1,
+            ]);
+        };
+
+        $response = $this->userRequest()->post('/api/v1/entity/import', [
+            'file' => $this->createCSVFile([
+                ['name', 'references'],
+                ['hemmingway', 'old_man.1952:Santiago tries to cath a Marlin.'],
+                // Here we test if we can import a colon inside the description.
+                ['melville', 'moby_dick.1851:"Cpt. Ahab hates the whale: it bit off his leg!"'],
+                // Here we test if we can import a semicolon inside the description
+                ['verne', 'verne.1871:"They discovered a futurisitc ship; the Nautilus!"']
+            ]),
+            'data' => $this->getData(entityReference: 'references'),
+            'metadata' => $this->getMetaData(),
+        ]);
+        
+        info(json_encode($response));
+        
+           $response->assertStatus(201);
     }
 }

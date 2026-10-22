@@ -275,6 +275,9 @@
                 nextTick(() => {
                     guessNameColumn();
                     guessParentColumn();
+                    guessAttribution();
+                    guessLicence();
+                    guessReferences();
                     guessAttributeMapping();
                 });
 
@@ -339,6 +342,19 @@
                 guessEntitySetting(entitySettings, 'entityParent', ['parent', 'path'], onParentColumnChanged);
             };
 
+            const guessAttribution = _ => {
+                guessEntitySetting(entitySettings, 'entityAttribution', ['attribution' ,'contributors', 'description'], onParentColumnChanged);
+            };
+
+            const guessLicence = _ => {
+                guessEntitySetting(entitySettings, 'entityLicence', ['licence'], onParentColumnChanged);
+            };
+
+            const guessReferences = _ => {
+                guessEntitySetting(entitySettings, 'entityReference', ['reference', 'source'], onParentColumnChanged);
+            };
+
+
             const guessAttributeMapping = _ => {
                 for(const attr of state.availableAttributes) {
                     if(attributeSettings.mapping[attr.id]) {
@@ -384,7 +400,7 @@
                 const stats = determineColumnStats(attributeValue);
                 state.stats.entityLicence = stats;
             };
-            
+
             const onReferenceColumnChanged = (attributeValue) => {
                 const stats = determineColumnStats(attributeValue);
                 state.stats.entityReference = stats;
@@ -430,11 +446,11 @@
                 if(!!entitySettings.entityAttribution) {
                     postData['entity_attribution'] = entitySettings.entityAttribution;
                 }
-                
+
                 if(!!entitySettings.entityLicence) {
                     postData['entity_licence'] = entitySettings.entityLicence;
                 }
-                
+
                 if(!!entitySettings.entityReference) {
                     postData['entity_reference'] = entitySettings.entityReference;
                 }
@@ -572,7 +588,7 @@
                 state.stats.entityAttribution = { missing: 0, total: 0 };
                 state.stats.entityLicence = { missing: 0, total: 0 };
                 state.stats.entityReference = { missing: 0, total: 0 };
-                
+
                 state.stats.attributes = {};
 
                 cancelImport();
@@ -662,6 +678,7 @@
                 onParentColumnChanged,
                 onAttributionColumnChanged,
                 onEntityLicenceColumnChanged,
+                onReferenceColumnChanged,
                 removeFile,
                 upload,
                 validate,
