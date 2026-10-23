@@ -14,7 +14,6 @@ class DelimitedTextParser {
         // quotes, then we remove them
         // e.g. "zorin.1802":"Brin;Calder" should be valid
         // but removing the outer quotes would break the next parsing step.
-        $inQuotes = false;
         $quoteType = null;
 
         // Check if we need to check for enclosign quotes
@@ -24,6 +23,7 @@ class DelimitedTextParser {
             return $word;
         }
 
+
         // If the last char is not the same quote, return.
         if($word[strlen($word) - 1] !== $quoteType) {
             return $word;
@@ -31,14 +31,16 @@ class DelimitedTextParser {
 
         for($i = 1; $i < strlen($word) - 1; $i++) {
             $char = $word[$i];
+
             if($char === '\\') {
                 $i++;
             } else if($char === $quoteType) {
                 return $word;
+            } else {
             }
         }
-        
-        return substr($word, 1, strlen($word)-2);
+
+        return substr($word, 1, strlen($word) - 2);
     }
 
     /**
@@ -46,8 +48,24 @@ class DelimitedTextParser {
      *
      * If $limit is 2, split only at the first delimiter
      * encountered outside quotes.
+     *
+     * Returned values are unescaped.
      */
     public static function split(
+        string $input,
+        string $delimiter,
+    ): array {
+        return array_map(
+            fn($value) => self::unescape($value),
+            self::splitRaw($input, $delimiter)
+        );
+    }
+
+    /**
+     * Like split(), but escape sequences are preserved, so the
+     * result can be split again by another delimiter.
+     */
+    private static function splitRaw(
         string $input,
         string $delimiter,
     ): array {
@@ -86,7 +104,7 @@ class DelimitedTextParser {
                         // We trim the buffer to get rid of trailing white spaces
                         // as it would require a backtrace to remove those.
                         // For simplicity we just trim it.
-                        $parts[] =self::sanitizeWord($buffer);
+                        $parts[] = self::sanitizeWord($buffer);
                         $buffer = '';
                     }
                 }
@@ -114,8 +132,10 @@ class DelimitedTextParser {
                     $inQuoteType = null;
                 } else {
                     if($char === "\\" && !$escapeNext) {
+                        // Keep the backslash in the buffer, so later
+                        // stages (sanitizeWord, nested split) still see
+                        // the escaped character as escaped.
                         $escapeNext = true;
-                        continue;
                     } else {
                         $escapeNext = false;
                     }
@@ -133,8 +153,14 @@ class DelimitedTextParser {
         }
 
         $parts[] = self::sanitizeWord($buffer);
-
         return $parts;
+    }
+
+    /**
+     * Replace every escape sequence (backslash + char) by the char.
+     */
+    public static function unescape(string $value): string {
+        return preg_replace('/\\\\(.)/s', '$1', $value);
     }
 
     /**
@@ -146,7 +172,9 @@ class DelimitedTextParser {
         string $pairDelimiter = ':',
     ): array {
 
-        $entries = self::split($input, $listDelimiter);
+        // The first pass keeps escapes, otherwise the second pass
+        // could not tell escaped quotes from real ones.
+        $entries = self::splitRaw($input, $listDelimiter);
         $result = [];
 
         foreach($entries as $entry) {

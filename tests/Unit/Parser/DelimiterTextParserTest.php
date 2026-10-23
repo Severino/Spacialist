@@ -40,7 +40,7 @@ class DelimiterTextParserTest extends TestCase {
                 ['Orlen: Vol 2', 'tarvic'],
             ],
             'escaped quote inside quotes' => [
-                'orlen.1799:"He said \\"hush\\": twice"',
+                'orlen.1799:"He said \"hush\": twice"',
                 ['orlen.1799', 'He said "hush": twice'],
             ],
             'escaped backslash inside quotes' => [
@@ -96,8 +96,16 @@ class DelimiterTextParserTest extends TestCase {
                 [['zorin.1802', 'Brin;Calder'], ['kavell.1750', 'The Siege: Part of Norvel']],
             ],
             'escaped quote with entry delimiter' => [
-                'zorin.1802:"The \\"Wanderer\\"; Ode";kavell.1750:thessan',
+                'zorin.1802:"The \"Wanderer\"; Ode";kavell.1750:thessan',
                 [['zorin.1802', 'The "Wanderer"; Ode'], ['kavell.1750', 'thessan']],
+            ],
+            'escaped backslash is unescaped' => [
+                'a:"back\\\\slash"',
+                [['a', 'back\\slash']],
+            ],
+            'fully quoted escaped value' => [
+                'k:"the \"man\""',
+                [['k', 'the "man"']],
             ],
             'custom delimiters' => [
                 'kavell.1750|"a|b"|c,tarvic.1760|d',
