@@ -4,7 +4,42 @@ namespace App\Import\Parser;
 
 use InvalidArgumentException;
 
-final class DelimitedTextParser {
+class DelimitedTextParser {
+
+    const quotes = ['"', "'"];
+
+    public static function sanitizeWord($word) {
+        $word = trim($word);
+        // Check if entire string is enclosed with
+        // quotes, then we remove them
+        // e.g. "zorin.1802":"Brin;Calder" should be valid
+        // but removing the outer quotes would break the next parsing step.
+        $inQuotes = false;
+        $quoteType = null;
+
+        // Check if we need to check for enclosign quotes
+        if(in_array($word[0], self::quotes)) {
+            $quoteType = $word[0];
+        } else {
+            return $word;
+        }
+
+        // If the last char is not the same quote, return.
+        if($word[strlen($word) - 1] !== $quoteType) {
+            return $word;
+        }
+
+        for($i = 1; $i < strlen($word) - 1; $i++) {
+            $char = $word[$i];
+            if($char === '\\') {
+                $i++;
+            } else if($char === $quoteType) {
+                return $word;
+            }
+        }
+        
+        return substr($word, 1, strlen($word)-2);
+    }
 
     /**
      * Split on a delimiter, ignoring delimiters inside quotes.
@@ -12,7 +47,7 @@ final class DelimitedTextParser {
      * If $limit is 2, split only at the first delimiter
      * encountered outside quotes.
      */
-    public function split(
+    public static function split(
         string $input,
         string $delimiter,
     ): array {
@@ -22,8 +57,7 @@ final class DelimitedTextParser {
             );
         }
 
-        $quotes = ['"', "'"];
-        $whitespaces = [" ", "\t"];
+        $whitespaces = ["\n", "\r", "\t", "\v", "\x00"]; // taken from trim()
         $escapeNext = false;
 
         $parts = [];
@@ -52,7 +86,7 @@ final class DelimitedTextParser {
                         // We trim the buffer to get rid of trailing white spaces
                         // as it would require a backtrace to remove those.
                         // For simplicity we just trim it.
-                        $parts[] = trim($buffer);
+                        $parts[] =self::sanitizeWord($buffer);
                         $buffer = '';
                     }
                 }
@@ -66,15 +100,11 @@ final class DelimitedTextParser {
                 }
                 // If we encounter a quote directly after a split position
                 // we identify it as a quoted text.
-                else if(in_array($char, $quotes)) {
+                else if(in_array($char, self::quotes)) {
                     $inQuotes = true;
                     $inQuoteType = $char;
                     // Outer Quotes are not buffered we are only interested in the string.
-                    continue;
                 }
-
-                // if we did hit nothing else we append the text
-                $buffer .= $char;
             } else {
                 // If we encounter a quote character
                 // of the same type the quoted string
@@ -82,19 +112,18 @@ final class DelimitedTextParser {
                 if($char === $inQuoteType && !$escapeNext) {
                     $inQuotes = false;
                     $inQuoteType = null;
-                    continue;
                 } else {
-                    if($char === "\\" && !$escapeNext){
+                    if($char === "\\" && !$escapeNext) {
                         $escapeNext = true;
                         continue;
-                    }else{
+                    } else {
                         $escapeNext = false;
                     }
-                
-                    $buffer .= $char;
-                    continue;
                 }
             }
+
+            // We always write to the buffer unless a continue prohibits it.
+            $buffer .= $char;
         }
 
         if($inQuotes) {
@@ -103,30 +132,25 @@ final class DelimitedTextParser {
             );
         }
 
-        $parts[] = trim($buffer);
+        $parts[] = self::sanitizeWord($buffer);
 
         return $parts;
     }
 
     /**
      * Parse a delimited list of key/value entries.
-     *
-     * Example: key1:"value; with delimiters";key2:other
      */
-    public function parsePairs(
+    public static function parseList(
         string $input,
-        string $entryDelimiter = ';',
+        string $listDelimiter = ';',
         string $pairDelimiter = ':',
     ): array {
-        $entries = $this->split($input, $entryDelimiter);
+
+        $entries = self::split($input, $listDelimiter);
         $result = [];
 
         foreach($entries as $entry) {
-            if(trim($entry) === '') {
-                continue;
-            }
-
-            $result[] = $this->split($entry, $pairDelimiter);
+            $result[] = self::split($entry, $pairDelimiter);
         }
 
         return $result;
