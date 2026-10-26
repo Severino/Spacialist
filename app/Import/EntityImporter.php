@@ -12,6 +12,7 @@ use App\Import\ImportResolution;
 use App\Attribute;
 use App\AttributeTypes\AttributeBase;
 use App\Reference;
+use App\Services\Importer\ReferenceService;
 use App\ThConcept;
 use Exception;
 
@@ -34,18 +35,21 @@ class EntityImporter {
     private ?string $parentColumn = null;
     private ImportResolution $resolver;
 
+    private array $services = [];
 
-    public function __construct($metadata, $data) {
+    public function __construct($metadata, $data,
+        public readonly ReferenceService $referenceService,        
+    ) {
         $this->resolver = new ImportResolution();
         $this->metadata = $metadata;
 
         $this->nameColumn = $data['name_column'] ?? '';
         $this->entityTypeId = $data['entity_type_id'];
         $this->attributesMap = $data['attributes'];
-        $this->entityReference = $data['entity_reference'] ?? null;
         
-        if($this->entityReference) {
-            $this->entityReference = trim($this->entityReference);
+        $this->services = array_slice(func_get_args(), 2);
+        foreach($this->services as $service) {
+            $service->init($data[$service->headerKey] ?? '', $this->resolver);
         }
         
         // The parent column is optional, therefore we only set it
@@ -105,9 +109,12 @@ class EntityImporter {
 
         $this->verifyNameColumn($headers);
         $this->verifyParentColumn($headers);
-        $this->verifyReferenceColumn($headers);
         $this->verifyEntityType($this->entityTypeId);
         $this->verifyAttributeMapping($headers);
+        
+        foreach($this->services as $service) {
+            $service->verifyHeader($headers);
+        }
 
         if($this->resolver->hasErrors()) {
             return $this->resolver;
@@ -122,8 +129,8 @@ class EntityImporter {
                 }
                 $this->validateAttributesInRow($row, $index);
                 
-                if($this->entityReference) {                
-                    $this->validateEntityReference($row, $index);
+                foreach($this->services as $service) {
+                    $service->validate($row, $index);
                 }
             });
         } catch(CsvColumnMismatchException $csvMismatchException) {
@@ -155,14 +162,6 @@ class EntityImporter {
     private function verifyParentColumn($headers): bool {
         if(isset($this->parentColumn) && !in_array($this->parentColumn, $headers)) {
             $this->resolver->conflict(__("entity-importer.parent-column-does-not-exist", ["column" => $this->parentColumn]));
-            return false;
-        }
-        return true;
-    }
-    
-    private function verifyReferenceColumn($headers): bool {
-        if(isset($this->entityReference) && !in_array($this->entityReference, $headers)) {
-            $this->resolver->conflict(__("entity-importer.reference-column-does-not-exist", ["column" => $this->entityReference]));
             return false;
         }
         return true;
@@ -285,32 +284,7 @@ class EntityImporter {
             $this->rowConflict($index, "entity-importer.attribute-could-not-be-imported", ["attributeErrors" => implode(", ", $errorStrings)]);
         }
         return count($errors) == 0;
-    }
-    
-    private function validateEntityReference($row, $index){
-        $reference = $row[$this->entityReference];
-        if(!empty($reference)){
-            $parsedReferences = Reference::parseReferencedFromString($reference);
-            $errors = [];
-            foreach($parsedReferences as $parsedReference){
-                if(!$parsedReference["valid"]){
-                    $errors[] = "Wrong format of Reference: " . $parsedReference['input'];
-                    continue;
-                }    
-                
-                $hasValidCiteKey = Reference::checkIfCiteKeyIsValid($parsedReference['citeKey'], $this->bibliographyCache);
-                if(!$hasValidCiteKey){
-                    $errors[] = "Bibliography with citekey does not exist: " . $parsedReference['citeKey'];
-                    continue;
-                }
-            }
-            
-            if(count($errors) > 0){
-                $this->rowConflict($index, "Error importing Biliography:\n" . implode("; ", $errors));
-            }
-        }
-    }
-    
+    }    
     
     private function rowConflict($rowIndex, $msg, $args = []) {
         $tmsg = __($msg, $args);

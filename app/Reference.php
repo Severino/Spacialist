@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Support\Cache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -125,15 +126,15 @@ class Reference extends Model
         ];
     }
     
-    public static function checkIfCiteKeyIsValid($citeKey, &$bibliographyCache) {
+    public static function checkIfCiteKeyIsValid($citeKey, Cache &$bibliographyCache) {
             $bibliographyId = null;
-            if(isset($bibliographyCache[$citeKey])) {
-                $bibliographyId = $bibliographyCache[$citeKey];
+            if($bibliographyCache->has($citeKey)) {
+                $bibliographyId = $bibliographyCache->get($citeKey);
             } else {
                 try {
                     $bibliography = Bibliography::where('citekey', $citeKey)->firstOrFail();
                     $bibliographyId = $bibliography->id;
-                    $bibliographyCache[$citeKey] = $bibliographyId;
+                    $bibliographyCache->set($citeKey, $bibliographyId)
                 } catch(ModelNotFoundException $e) {
                     $bibliographyId = null;
                 }

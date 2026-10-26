@@ -55,7 +55,15 @@ class DelimiterTextParserTest extends TestCase {
                 'zorin.1802:"Brin;Calder";kavell.1750:"The Siege: Part of Norvel"',
                 ['zorin.1802:"Brin;Calder"', 'kavell.1750:"The Siege: Part of Norvel"'],
                 ';'
-            ]
+            ],
+            'quotes at first position' => [
+                'zorin.1802: "Lumeria", a village in the south',
+                ['zorin.1802', '"Lumeria", a village in the south']
+            ],
+            'quotes at first and last position' => [
+                'zorin.1802: "Lumeria", a village in the "south"',
+                ['zorin.1802', '"Lumeria", a village in the "south"']
+            ],
         ];
     }
 
@@ -73,7 +81,7 @@ class DelimiterTextParserTest extends TestCase {
             'closing quote escaped at end' => ['zorin.1802:"lumeria\\"'],
             'empty delimiter' => ['zorin.1802:lumeria', ''],
             'delimiter with multiple characters' => ['zorin.1802:lumeria', 'as'],
-            
+
         ];
     }
 
