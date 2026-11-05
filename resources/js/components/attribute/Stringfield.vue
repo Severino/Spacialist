@@ -1,10 +1,16 @@
 <template>
     <textarea
         :id="name"
+        ref="textarea"
         v-model="v.value"
         class="form-control"
         :disabled="disabled"
         :name="name"
+        :style="{
+            resize: autoheight ? 'none' : 'vertical',
+            overflowY: autoheight ? 'hidden' : 'auto',
+        }"
+        @input="(event) => updateHeight(event)"
     />
 </template>
 
@@ -12,6 +18,9 @@
     import {
         reactive,
         toRefs,
+        useTemplateRef,
+        nextTick,
+        onMounted,
         watch,
     } from 'vue';
 
@@ -34,6 +43,7 @@
                 type: String,
                 required: true,
             },
+            autoheight: Boolean
         },
         emits: ['change'],
         setup(props, context) {
@@ -44,7 +54,17 @@
             } = toRefs(props);
             // FETCH
 
+            const textarea = useTemplateRef('textarea')
+
             // FUNCTIONS
+            const updateHeight = () => {
+                if(!props.autoheight || !textarea.value) return;
+
+                textarea.value.style.height = 'auto';
+                const styles = window.getComputedStyle(textarea.value);
+                const borders = parseFloat(styles.borderTopWidth) + parseFloat(styles.borderBottomWidth);
+                textarea.value.style.height = `${textarea.value.scrollHeight + borders}px`;
+            };
             const resetFieldState = _ => {
                 v.resetField({
                     value: value.value
@@ -77,6 +97,7 @@
                 resetFieldState();
             });
             watch(_ => v.value, (newValue, oldValue) => {
+                nextTick(updateHeight);
                 // only emit @change event if field is validated (required because Entity.vue components)
                 // trigger this watcher several times even if another component is updated/validated
                 if(!v.meta.validated) return;
@@ -86,6 +107,8 @@
                     value: v.value,
                 });
             });
+
+            onMounted(updateHeight);
 
             // RETURN
             return {

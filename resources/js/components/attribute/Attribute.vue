@@ -14,6 +14,7 @@
         :disabled="state.disabled"
         :name="`attr-${data.id}`"
         :value="state.value"
+        :autoheight="true"
         @change="updateDirtyState"
     />
 
