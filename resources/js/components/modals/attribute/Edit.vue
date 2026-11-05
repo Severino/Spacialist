@@ -64,12 +64,12 @@
                             {{ t('global.type') }}:
                         </label>
                         <div class="col-md-10">
-                            <input
-                                type="text"
-                                class="form-control"
-                                :value="getLabel(state.attribute.datatype)"
-                                disabled
-                            >
+                            <Multiselect
+                                v-model="conversionType"
+                                :options="conversionTypes"
+                                :disabled="conversionTypes.length <= 1"
+                                :canClear="false"
+                            />
                         </div>
                     </div>
                 </template>
@@ -128,6 +128,7 @@
         computed,
         onMounted,
         reactive,
+        ref,
     } from 'vue';
 
     import { useI18n } from 'vue-i18n';
@@ -154,6 +155,8 @@
     } from '@/helpers/dependencies.js';
 
     import DependencyForm from '@/components/entity/dependency/DependencyForm.vue';
+    import Multiselect from '@vueform/multiselect';
+    import { getConversionFor } from '@/helpers/attribute';
 
     export default {
         components: {
@@ -185,6 +188,10 @@
                 const data = {
                     dependency: state.dependency,
                 };
+                
+                if(conversionType.value && conversionType.value !== datatype) {
+                    data.datatype = conversionType.value;
+                }
 
                 // Check for changes in width metadata
                 if(state.attribute.pivot &&
@@ -247,9 +254,16 @@
                 }),
             });
 
+            const datatype = computed(() => state?.attribute?.datatype);
+            const conversionType = ref("");
+            const conversionTypes = computed(() => {
+                return getConversionFor(datatype.value).map(value => ({ value, label: t("global.attributes." + value) }))
+            })
+
             // ON MOUNTED
             onMounted(_ => {
                 state.attribute = getEntityTypeAttribute(props.entityTypeId, props.attributeId);
+                conversionType.value = datatype.value;
                 const currentDependency = getEntityTypeDependencies(props.entityTypeId, props.attributeId);
                 if(currentDependency) {
                     state.dependency = formatDependency(currentDependency);
@@ -279,6 +293,10 @@
                 getLabel,
                 // STATE
                 state,
+
+                datatype,
+                conversionType,
+                conversionTypes,
             };
         },
     };

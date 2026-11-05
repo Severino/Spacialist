@@ -687,6 +687,9 @@ export function showEditAttribute(aid, etid, metadata) {
             },
             async onConfirm(e) {
                 const entityStore = useEntityStore();
+                if(e.datatype){
+                    await useAttributeStore().patchType(aid, e.datatype);
+                }
                 if(e.metadata) {
                     await entityStore.patchEntityMetadata(etid, aid, metadata.pivot.id, e.metadata);
                 }
@@ -752,7 +755,7 @@ export function showRemoveAttribute(etid, aid, id, metadata, onDeleted) {
                 modal.destroy();
             },
             onConfirm(e) {
-                useEntityStore().removeEntityTypeAttribute(id, etid).then(_ => {
+                useEntityStore().removeEntityTypeAttribute(id, etid, aid).then(_ => {
                     if(!!onDeleted) {
                         onDeleted();
                     }

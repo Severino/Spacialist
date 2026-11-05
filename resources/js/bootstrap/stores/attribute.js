@@ -8,6 +8,7 @@ import useSystemStore from './system.js';
 import {
     addAttribute,
     deleteAttribute,
+    patchAttributeDataModel,
 } from '@/api.js';
 
 import {
@@ -52,7 +53,7 @@ export const useAttributeStore = defineStore('attribute', {
             return filteredSelection;
         },
         getTableAttributeTypes: state => state.attributeTypes.filter(type => type.in_table),
-        isFromPlugin: state => datatype => {          
+        isFromPlugin: state => datatype => {
             const registeredPluginAttributes = usePluginStore().registeredAttributes;
             return !!usePluginStore().registeredAttributes[datatype];
         },
@@ -120,6 +121,53 @@ export const useAttributeStore = defineStore('attribute', {
                 useEntityStore().removeAttributeFromEntityTypes(attributeId);
             });
         },
+        /**
+         * Replaces or, if an attribute with that id doesn't exists, inserts an attribute. 
+         * @param {object} attribute - Attribute object that should be replaced. 
+         */
+        replaceAttribute(attribute) {
+            const index = this.attributes.findIndex(other_attribute => other_attribute.id === attribute.id)
+            if(index >= 0) {
+                // There may be additional properties which would be lost with a simple replacement e.g. the entity_type_count 
+                const mergedAttributes = Object.assign({}, this.attributes[index], attribute)
+                this.attributes.splice(index, 1, mergedAttributes);
+            } else {
+                this.attributes.push(attribute)
+            }
+            this.updateAttributesOnEntityTypeAttributes([attribute]);
+        },
+        /**
+         * Changes the attribute's datatype, if the target datatype is supported.
+         * @param {number} attributeId - Attribute to update. 
+         * @param {string} datatype - Target datatype. 
+         * @returns {void}
+         */
+        async patchType(attributeId, datatype) {
+            return patchAttributeDataModel(attributeId, { datatype })
+                .then(attribute => this.replaceAttribute(attribute))
+        },
+        /**
+         * Updates all related entityTypeAttributes to represent the correct datatype.
+         * 
+         * This ensures that all attributes that are already rendered on the entity types
+         * are updated correctly and immediately show the new datatype when the attribute
+         * properties were changed.
+         * 
+         * @param {array} attributes - A list of attributes that should be updated. 
+         */
+        updateAttributesOnEntityTypeAttributes(attributes) {
+            const entityTypeAttributes = useEntityStore().entityTypeAttributeMap
+            for(const attribute of attributes) {
+                console.log(entityTypeAttributes)
+                const entityAttributes = entityTypeAttributes[attribute.id];
+                for(const entityTypeId in entityAttributes) {
+                    const entityAttribute = entityAttributes[entityTypeId];
+                    // We override all attribute data on the entityAttribute
+                    // the attribute data just lives on the root level.
+                    Object.assign(entityAttribute, attribute)
+                }
+            }
+        }
     },
 });
 

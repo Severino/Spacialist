@@ -705,6 +705,12 @@ export async function deleteAttribute(aid) {
     );
 }
 
+export async function patchAttributeDataModel(aid, options) {
+    return $httpQueue.add(
+        () => http.patch(`editor/dm/attribute/${aid}`, options).then(response => response.data)
+    );
+}
+
 export async function deleteBibliographyItemFile(id) {
     return await $httpQueue.add(
         () => http.delete(`bibliography/${id}/file`).then(response => response.data)

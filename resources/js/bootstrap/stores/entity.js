@@ -104,6 +104,9 @@ export const useEntityStore = defineStore('entity', {
         entities: {},
         entityTypes: {},
         entityTypeAttributes: {},
+        
+        /** Keeps track of all entityAttributes on the entity types in the format entityTypeAttributeMap[attributeId][entityTypeId]=entityAttribute */
+        entityTypeAttributeMap: {},
         entityTypeColors: {},
         receivedEntityData: {},
         tree: [],
@@ -786,6 +789,8 @@ export const useEntityStore = defineStore('entity', {
                     },
                 };
 
+                this.entityTypeAttributeMap[attributeId][entityTypeId] = mergedData;
+
                 const attributes = this.getEntityTypeAttributes(mergedData.entity_type_id);
                 attributes.splice(mergedData.position - 1, 0, mergedData);
                 for(let i = mergedData.position; i < attributes.length; i++) {
@@ -819,7 +824,7 @@ export const useEntityStore = defineStore('entity', {
                 return data;
             });
         },
-        async removeEntityTypeAttribute(id, entityTypeId) {
+        async removeEntityTypeAttribute(id, entityTypeId, attributeId) {
             return removeEntityTypeAttribute(id).then(_ => {
                 const attributes = this.getEntityTypeAttributes(entityTypeId);
                 const idx = attributes.findIndex(a => a.pivot.id == id);
@@ -828,6 +833,12 @@ export const useEntityStore = defineStore('entity', {
                     attributes.splice(idx, 1);
                     useAttributeStore().decreaseEntityTypeCounter(aid);
                 }
+
+                // Remove from the entityAttributeMap
+                if(this.entityTypeAttributeMap?.[attributeId]?.[entityTypeId]) {
+                    delete this.entityTypeAttributeMap[attributeId][entityTypeId];
+                }
+
                 // TODO was: position++; what is correct?
                 for(let i = idx; i < attributes.length; i++) {
                     if(attributes[i].position) {
@@ -895,10 +906,19 @@ export const useEntityStore = defineStore('entity', {
         initializeEntityTypes(data) {
             this.entityTypes = {};
             this.entityTypeAttributes = {};
+            this.entityTypeAttributeMap = {}
             for(let k in data) {
                 const entityType = data[k];
-                this.entityTypeAttributes[entityType.id] = entityType.attributes.slice();
+                const entityAttributes = entityType.attributes.slice()
+                this.entityTypeAttributes[entityType.id] = entityAttributes;
                 delete entityType.attributes;
+                
+                for(let attr of entityAttributes) {
+                    if(!this.entityTypeAttributeMap[attr.id]) {
+                        this.entityTypeAttributeMap[attr.id] = {};
+                    }
+                    this.entityTypeAttributeMap[attr.id][k] = attr;
+                }
             }
             this.entityTypes = data;
         },

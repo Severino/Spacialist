@@ -18,6 +18,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Log;
 
 class EditorController extends Controller {
     // GET
@@ -412,6 +413,39 @@ class EditorController extends Controller {
         $entityType->load('sub_entity_types');
 
         return response()->json($entityType, 200);
+    }
+    
+    public function patchAttribute(Request $request, $aid){
+        $user = auth()->user();
+        if(!$user->can("attribute_write")){
+            abort(403);
+        }
+        
+        $this->validate($request, [
+            "datatype" => "nullable|string"
+        ]);
+        
+        $datatype = $request->input("datatype");
+        $attribute = Attribute::findOrFail($aid);
+        $fromAttributeType = AttributeRegistry::getMatchingClass($attribute->datatype);
+        $toAttributeType = AttributeRegistry::getMatchingClass($datatype);
+        
+        if(!$fromAttributeType) {
+            Log::error("Could not find attribute type in registry for attribute {$attribute->id} with datatype {$attribute->datatype}");
+            abort(500);
+        }
+        
+        if(!$toAttributeType) {
+            abort(404, "Attribute type not found.");
+        }
+        
+        if($fromAttributeType::getField() !== $toAttributeType::getField()){
+            abort(400, "Request does not fit the converion criteria");
+        }
+        
+        $attribute->datatype = $datatype;
+        $attribute->save();
+        return $attribute;
     }
 
     public function reorderAttribute(Request $request, $ctid, $aid) {

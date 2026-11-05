@@ -129,6 +129,7 @@ Route::middleware('auth:sanctum')->prefix('v1/editor')->group(function () {
     Route::post('/dm/entity_type/{ctid}/duplicate', 'EditorController@duplicateEntityType')->where('ctid', '[0-9]+');
 
     Route::patch('/dm/entity_type/{etid}', 'EditorController@patchEntityType')->where('etid', '[0-9]+');
+    Route::patch('/dm/attribute/{aid}', 'EditorController@patchAttribute')->where('aid', '[0-9]+');
     Route::patch('/dm/entity_type/{ctid}/attribute/{aid}/position', 'EditorController@reorderAttribute')->where('ctid', '[0-9]+')->where('aid', '[0-9]+');
     Route::patch('/dm/entity_type/{etid}/attribute/{aid}/dependency', 'EditorController@patchDependency')->where('etid', '[0-9]+')->where('aid', '[0-9]+');
     Route::patch('/dm/entity_type/attribute/{id}/metadata', 'EditorController@patchAttributeMetadata')->where('id', '[0-9]+');
@@ -265,12 +266,12 @@ Route::middleware('auth:sanctum')->prefix('v1/tag')->group(function () {
 //     Route::post('filter', 'AnalysisController@applyFilterQuery');
 // });
 
-// Open Access
-Route::prefix('v1/open')->group(function () {
-    Route::get('global', 'OpenAccessController@getGlobals');
-    Route::get('attributes', 'OpenAccessController@getAttributes');
-    Route::get('types', 'OpenAccessController@getEntityTypes');
+// // Open Access
+// Route::prefix('v1/open')->group(function () {
+//     Route::get('global', 'OpenAccessController@getGlobals');
+//     Route::get('attributes', 'OpenAccessController@getAttributes');
+//     Route::get('types', 'OpenAccessController@getEntityTypes');
 
-    Route::post('result', 'OpenAccessController@getFilterResults');
-    Route::post('result/by_type/{id}', 'OpenAccessController@getFilterResultsForType')->where('id', '[0-9]+');
-});
+//     Route::post('result', 'OpenAccessController@getFilterResults');
+//     Route::post('result/by_type/{id}', 'OpenAccessController@getFilterResultsForType')->where('id', '[0-9]+');
+// });

@@ -68,7 +68,7 @@ class AttributeRegistry {
         self::registerPluginTypes();
 
         if(count($filters) > 0) {
-            $types = Arr::where(self::$types, function(array $typeDef, string $key) use($filters) {
+            $types = Arr::where(self::$types, function(array $typeDef, string $key) use ($filters) {
                 $attr = $typeDef['class'];
                 foreach($filters as $on => $value) {
                     if($on == "datatype") {
@@ -99,5 +99,14 @@ class AttributeRegistry {
         } else {
             return $types;
         }
+    }
+
+    public static function getMatchingClass(string $datatype): bool|AttributeBase {
+        $types = AttributeRegistry::getTypes();
+        if(array_key_exists($datatype, $types)) {
+            return new $types[$datatype]['class']();
+        }
+
+        return false;
     }
 }
