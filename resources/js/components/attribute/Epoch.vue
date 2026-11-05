@@ -10,7 +10,7 @@
                 aria-expanded="false"
             >
                 <span v-if="v.startLabel.value">
-                    {{ t(`main.entity.attributes.${v.startLabel.value}`) }}
+                    {{ v.startLabel.value }}
                 </span>
                 <span v-else>
                     <!-- TODO: Check if this else is required -->
@@ -24,7 +24,7 @@
                     href="#"
                     @click.prevent="setLabel('startLabel', label)"
                 >
-                    {{ t(`main.entity.attributes.${label}`) }}
+                    {{ label }}
                 </a>
             </ul>
             <input
@@ -59,7 +59,7 @@
                 aria-expanded="false"
             >
                 <span v-if="v.endLabel.value">
-                    {{ t(`main.entity.attributes.${v.endLabel.value}`) }}
+                    {{ v.endLabel.value }}
                 </span>
                 <span v-else>
                     <!-- TODO: Check if this else is required -->
@@ -76,7 +76,7 @@
                     href="#"
                     @click.prevent="setLabel('endLabel', label)"
                 >
-                    {{ t(`main.entity.attributes.${label}`) }}
+                    {{ label }}
                 </a>
             </ul>
         </div>
@@ -151,6 +151,7 @@
             disabled: {
                 type: Boolean,
             },
+            christianTime: Boolean,
         },
         emits: ['change'],
         setup(props, context) {
@@ -163,6 +164,7 @@
                 disabled,
             } = toRefs(props);
             // FETCH
+            const timeLabels = props.christianTime ? [t(`main.entity.attributes.BC`), t(`main.entity.attributes.AD`)] : ['BCE', 'CE'];
 
             // FUNCTIONS
             const resetFieldState = _ => {
@@ -173,10 +175,10 @@
                     value: value.value.end
                 });
                 v.startLabel.resetField({
-                    value: value.value.startLabel
+                    value: value.value.startLabel ?? timeLabels[1]
                 });
                 v.endLabel.resetField({
-                    value: value.value.endLabel
+                    value: value.value.endLabel ?? timeLabels[1]
                 });
                 v.epoch.resetField({
                     value: value.value.epoch
@@ -190,10 +192,10 @@
                     value: v.end.value
                 });
                 v.startLabel.resetField({
-                    value: v.startLabel.value
+                    value: v.startLabel.value ?? timeLabels[1]
                 });
                 v.endLabel.resetField({
-                    value: v.endLabel.value
+                    value: v.endLabel.value ?? timeLabels[1]
                 });
                 v.epoch.resetField({
                     value: v.epoch.value
@@ -207,7 +209,6 @@
             };
 
             // DATA
-            const timeLabels = ['BC', 'AD'];
             const {
                 handleInput: his,
                 value: vs,
@@ -230,8 +231,8 @@
                 value: vsl,
                 meta: msl,
                 resetField: rfsl,
-            } = useField(`startlabel_${name.value}`, yup.string().matches(/(BC|AD)/), {
-                initialValue: value.value.startLabel,
+            } = useField(`startlabel_${name.value}`, yup.string().matches(/(BC|AD|BCE|CE)/), {
+                initialValue: value.value.startLabel ?? timeLabels[1],
             });
             const {
                 handleInput: hiel,
@@ -239,8 +240,8 @@
                 value: vel,
                 meta: mel,
                 resetField: rfel,
-            } = useField(`endlabel_${name.value}`, yup.string().matches(/(BC|AD)/), {
-                initialValue: value.value.endLabel,
+            } = useField(`endlabel_${name.value}`, yup.string().matches(/(BC|AD|BCE|CE)/), {
+                initialValue: value.value.endLabel ?? timeLabels[1],
             });
             const {
                 handleInput: hiep,
