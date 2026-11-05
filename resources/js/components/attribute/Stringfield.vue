@@ -116,6 +116,7 @@
                 // LOCAL
                 resetFieldState,
                 undirtyField,
+                updateHeight,
                 // STATE
                 state,
                 v,
