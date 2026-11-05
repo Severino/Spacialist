@@ -1,6 +1,9 @@
 <template>
     <div>
-        <div class="input-group">
+        <div
+            class="input-group"
+            v-if="collapsible"
+        >
             <button
                 type="button"
                 class="btn btn-outline-secondary"
@@ -27,7 +30,7 @@
             <button
                 v-if="!disabled"
                 type="button"
-                class="btn btn-outline-success"
+                class="btn btn-outline-primary"
                 :disabled="!state.valid"
                 @click="addListEntry()"
             >
@@ -35,25 +38,50 @@
             </button>
         </div>
         <ol
-            v-if="state.expanded && v.value.length"
-            class="mt-2 mb-0"
+            v-if="(collapsible && state.expanded) || !collapsible"
+            class="list-group"
         >
             <li
-                v-for="(l, i) in v.value"
+                v-for="(item, i) in v.value"
                 :key="i"
+                class="list-group-item d-flex gap-3 justify-content-between align-items-center p-0"
+                :class="{ 'list-group-numbered': numbered }"
             >
                 <!-- eslint-disable-next-line vue/no-v-html -->
-                <span v-html="createAnchorFromUrl(l)" />
+                <input
+                    type="text"
+                    class="form-control border-0"
+                    :value="item"
+                    @input="(event) => updateItem(event, i)"
+                />
                 <a
                     v-if="!disabled"
+                    class="text-secondary px-3"
                     href="#"
-                    class="text-danger"
                     @click.prevent="removeListEntry(i)"
                 >
-                    <i class="fas fa-fw fa-trash" />
+                    <i class="fas fa-fw fa-x fa-xs" />
                 </a>
             </li>
         </ol>
+        <div class="input-group mt-2">
+            <input
+                v-model="state.input"
+                type="text"
+                class="form-control"
+                :disabled="disabled"
+                @keydown.enter="addListEntry()"
+            >
+            <button
+                v-if="!disabled"
+                type="button"
+                class="btn btn-outline-primary"
+                :disabled="!state.valid"
+                @click="addListEntry()"
+            >
+                <i class="fas fa-fw fa-plus" />
+            </button>
+        </div>
     </div>
 </template>
 
@@ -73,7 +101,7 @@
 
     export default {
         props: {
-            name:{
+            name: {
                 type: String,
                 required: false,
                 default: null
@@ -85,6 +113,12 @@
             disabled: {
                 type: Boolean,
             },
+            collapsible: {
+                type: Boolean,
+            },
+            numbered: {
+                type: Boolean
+            }
         },
         emits: ['change'],
         setup(props, context) {
@@ -135,13 +169,40 @@
                 valid: computed(_ => !!state.input),
             });
             const v = reactive({
-                meta:{
+                meta: {
                     dirty: false,
                     valid: true,
                     validated: false,
                 },
                 value: entries.value.slice(),
             });
+
+            const updateItem = (event, index) => {
+                const text = event.currentTarget.value
+                v.value[index] = text
+                if(checkDirty()) {
+                    v.meta.dirty = true
+                    context.emit('change', {
+                        dirty: v.meta.dirty,
+                        valid: v.meta.valid,
+                        value: v.value,
+                    });
+                } else {
+                    if(v.meta.dirty) {
+                        v.meta.dirty = false;
+                        context.emit('change', {
+                            dirty: v.meta.dirty,
+                            valid: v.meta.valid,
+                            value: v.value,
+                        });
+                    }
+                }
+            }
+
+            const checkDirty = () => {
+                if(v.value.length != state.initialValue.length) return true;
+                return !v.value.every((val, index) => val === state.initialValue[index])
+            }
 
             watch(v.value, (newValue, oldValue) => {
                 // only emit @change event if field is validated (required because Entity.vue components)
@@ -152,7 +213,7 @@
                     valid: v.meta.valid,
                     value: v.value,
                 });
-            });
+            }, { deep: true });
             watch(_ => entries.value, (newValue, oldValue) => {
                 state.initialValue = newValue.slice();
                 resetFieldState();
@@ -169,6 +230,7 @@
                 toggleList,
                 resetFieldState,
                 undirtyField,
+                updateItem,
                 // STATE
                 state,
                 v,

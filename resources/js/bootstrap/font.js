@@ -248,6 +248,7 @@ import {
     faVolumeMute,
     faVolumeUp,
     faWindowMaximize,
+    faX,
 } from '@fortawesome/free-solid-svg-icons';
 
 library.add(
@@ -477,6 +478,7 @@ library.add(
     faVolumeMute,
     faVolumeUp,
     faWindowMaximize,
+    faX,
 );
 dom.watch();
 
